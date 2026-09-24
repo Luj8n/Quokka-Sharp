@@ -1,72 +1,16 @@
 # Quokka-Sharp
 
 Quokka-Sharp is a quantum circuit tool based on model counting. It provides four functionalities: **Simulate**, **Verify**, **Equivalence Checking**, and **Synthesis**.
----
 
-## Prerequisites
+## Setup
 
-Install the solvers required by Quokka-Sharp:
-
-- **GPMC** (simulation, verification, equivalence): [GPMC on GitHub](https://github.com/System-Verification-Lab/GPMC)
-- **Ganak** (alternative WMC solver): [Ganak releases](https://github.com/meelgroup/ganak/releases/tag/release%2F2.4.4)
-- **d4max** (synthesis only): [d4v2 on GitHub](https://github.com/jm62300/d4)
-
-Then install Quokka-Sharp:
+From the repository root, run:
 
 ```bash
-pip install quokka_sharp
+./scripts/setup-solvers.sh
 ```
 
----
-
-## Configuration
-
-Copy the template and edit it to point at your solver binaries:
-
-```bash
-cp config.example.json config.json
-```
-
-**For GPMC (simulation / verification / equivalence):**
-```json
-{
-  "DEBUG": false,
-  "TIMEOUT": 300,
-  "ToolInvocation": "/path/to/gpmc -mode=1",
-  "GetResult": "exact.double.prec-sci.(.+?)\\nc s",
-  "FPE": 1e-12
-}
-```
-
-**For Ganak:**
-```json
-{
-  "DEBUG": false,
-  "TIMEOUT": 1,
-  "ToolInvocation": "/path/to/ganak --mode=6",
-  "GetResult": "c s exact arb cpx (.+?)\\nc",
-  "FPE": 1e-12
-}
-```
-
-**For d4max (synthesis):**
-```json
-{
-  "DEBUG": true,
-  "TIMEOUT": 1000,
-  "ToolInvocation": "/path/to/gpmc -mode=1",
-  "D4ToolInvocation": "/path/to/d4maxT",
-  "GetResult": "exact.double.prec-sci.(.+?)\\nc s",
-  "FPE": 1e-12,
-  "Precision": 32
-}
-```
-
-Set the environment variable before running anything:
-
-```bash
-export QUOKKA_CONFIG=/path/to/config.json
-```
+The solver binaries are installed in `.solvers/bin`. This step only installs the solvers. Remove `.solvers` before reinstalling.
 
 ---
 
@@ -152,7 +96,6 @@ outcome, weight, qasm_str, layers = qk.functionalities.syn(
 > **Note:** Use either `"t"` or `"csqrtx"` for CCX synthesis, but not both simultaneously. Currently, we only implemented choosing different gate sets in Pauli basis.
 
 ---
----
 
 # Test Suite
 
@@ -212,17 +155,17 @@ pytest tests/test_quokka_sharp.py -v
 
 Verifies `qk.functionalities.sim()` in both computational and Pauli bases.
 
-| Circuit | Basis | Measurement | Expected |
-|---|---|---|---|
-| Identity wire | comp | allzero | 1.0 |
-| H | comp | allzero | 0.5 |
-| X | comp | allzero | 0.0 |
-| Z, S, T | comp | allzero | 1.0 |
-| HH, XXXX | comp | allzero | 1.0 (self-inverse) |
-| HZH | comp | allzero | 0.0 (= X) |
-| Bell | comp | allzero | 0.5 — P(00) |
-| GHZ | comp | allzero | 0.5 — P(000) |
-| Bell Ψ− | pauli | allzero | 0.0 |
+| Circuit       | Basis | Measurement | Expected           |
+| ------------- | ----- | ----------- | ------------------ |
+| Identity wire | comp  | allzero     | 1.0                |
+| H             | comp  | allzero     | 0.5                |
+| X             | comp  | allzero     | 0.0                |
+| Z, S, T       | comp  | allzero     | 1.0                |
+| HH, XXXX      | comp  | allzero     | 1.0 (self-inverse) |
+| HZH           | comp  | allzero     | 0.0 (= X)          |
+| Bell          | comp  | allzero     | 0.5 — P(00)        |
+| GHZ           | comp  | allzero     | 0.5 — P(000)       |
+| Bell Ψ−       | pauli | allzero     | 0.0                |
 
 ### 2 · Verification (`TestVerification`)
 
@@ -266,23 +209,23 @@ Verifies `qk.functionalities.eq()`. Use `check="cyclic"` with `basis="comp"` and
 
 **Equivalent pairs (→ True):**
 
-| Circuit A | Circuit B | Identity |
-|---|---|---|
-| HH | Identity | HH = I |
-| SS | Z | SS = Z |
-| HXH | Z | basis-change identity |
-| CX CX | Identity (2q) | CX is self-inverse |
+| Circuit A   | Circuit B     | Identity               |
+| ----------- | ------------- | ---------------------- |
+| HH          | Identity      | HH = I                 |
+| SS          | Z             | SS = Z                 |
+| HXH         | Z             | basis-change identity  |
+| CX CX       | Identity (2q) | CX is self-inverse     |
 | 3-CNOT SWAP | built-in SWAP | standard decomposition |
-| TT | S | TT = S |
+| TT          | S             | TT = S                 |
 
 **Non-equivalent pairs (→ False):**
 
-| Circuit A | Circuit B |
-|---|---|
-| H | X |
-| H | HS |
-| Bell (H+CX) | CX only |
-| Z | S |
+| Circuit A   | Circuit B |
+| ----------- | --------- |
+| H           | X         |
+| H           | HS        |
+| Bell (H+CX) | CX only   |
+| Z           | S         |
 
 ### 4 · Synthesis (`TestSynthesis`)
 
@@ -351,7 +294,7 @@ Example output:
 SIM_FILE        = fixture("multi_qubit", "bell.qasm")
 SIM_BASIS       = "comp"          # "comp" or "pauli"
 SIM_MEASUREMENT = "allzero"       # "allzero", "firstzero", "{0:0,1:0}"
-                                  
+
 
 # ── Verification ────────────────────────────────────────────
 VER_FILE     = fixture("verify", "v01_x_flip.qasm")
@@ -418,19 +361,20 @@ qasm_fixtures/
 ## Modifications
 
 ### code structure:
+
 The Quokka sharp repository has two main directories. The first directory is named quokka_sharp, and has the source code for the Quokka library. The second directory is named experiments, has examples on how to use the tool and benchmarks to test it.
 
-In the directory qukkora_sharp/quokka_sharp the main functionalities are implemented each in its own file and they use the core libraries defined within the quokka_sharp/quokka_sharp encoding. 
-
-
+In the directory qukkora_sharp/quokka_sharp the main functionalities are implemented each in its own file and they use the core libraries defined within the quokka_sharp/quokka_sharp encoding.
 
 ### extension of the encodings:
+
 Advanced users can extend `quokka-sharp` to support more quantum gates than the current gate set.  
 To do this, one needs to install [`SymPy`](https://docs.sympy.org/latest/index.html):
 
 ```bash
 pip install sympy
 ```
+
 The encoding supports a universal gate set: CNOT, CZ, H, S, T, RX, RZ.
 To add direct encoding of other gates, add new encoding in Quokka-Sharp/quokka_sharp/quokka_sharp/encoding/pauli2cnf_py_codegen.py or Quokka-Sharp/quokka_sharp/quokka_sharp/encoding/comput2cnf_py_codegen.py, depending on the basis.
 Then, update the ifelse cases at the "QASMparser" function in Quokka-Sharp/quokka_sharp/quokka_sharp/encoding/qasm_parser.py and the "encode_circuit" function in Quokka-Sharp/quokka_sharp/quokka_sharp/encoding/cnf.py.
@@ -439,34 +383,36 @@ Finally, run one of the following commands correspondingly:
 ```
 python3 pauli2cnf_py_codegen.py>pauli2cnf.py
 ```
+
 or
+
 ```
 python3 comput2cnf_py_codegen.py>comput2cnf.py
 ```
 
 ### updating the installation
+
 When changing the core files, Quokka# needs to be reinstalled from the local files. To do that, run:
+
 ```
-pip install ./quokka_sharp --force-reinstall 
+pip install ./quokka_sharp --force-reinstall
 ```
 
 ## Evaluation
 
-For evaluation of Quokka# please refer to [quokka-sharp-ae26]([https://github.com/System-Verification-Lab/quokka-sharp-artifacts](https://github.com/JingyiMei98/quokka-sharp-ae26))
-
+For evaluation of Quokka# please refer to [quokka-sharp-ae26](<[https://github.com/System-Verification-Lab/quokka-sharp-artifacts](https://github.com/JingyiMei98/quokka-sharp-ae26)>)
 
 ## 📚 Citation
 
 If you use the materials in this repository, please cite the following papers:
 
 1. **Simulating Quantum Circuits by Model Counting**  
-   *Jingyi Mei, Marcello Bonsangue, Alfons Laarman*  
-   *Proceedings of the 36th International Conference on Computer Aided Verification (CAV 2024)*
+   _Jingyi Mei, Marcello Bonsangue, Alfons Laarman_\
+   _Proceedings of the 36th International Conference on Computer Aided Verification (CAV 2024)_
 
 2. **Equivalence Checking of Quantum Circuits by Model Counting**  
-   *Jingyi Mei, Thijmen Coopmans, Marcello Bonsangue, Alfons Laarman*  
-   *Proceedings of the 12th International Joint Conference on Automated Reasoning (IJCAR 2024)*
-
+   _Jingyi Mei, Thijmen Coopmans, Marcello Bonsangue, Alfons Laarman_\
+   _Proceedings of the 12th International Joint Conference on Automated Reasoning (IJCAR 2024)_
 
 <details>
 <summary>📄 BibTeX</summary>
@@ -488,7 +434,8 @@ title="Equivalence Checking of Quantum Circuits by Model Counting",
 booktitle="Automated Reasoning",
 year="2024"
 }
- ```
+```
+
 </details>
 
 ## 📬 Contact
