@@ -119,6 +119,7 @@ build_d4() {
   (cd "$d4_src" && run bash ./build.sh)
   run make -C "$d4_src/demo/maxT" -j2 "LIBS=-L$env_dir/lib -Wl,-rpath,$env_dir/lib ../../build/libd4.a -lboost_program_options -lz -lgmpxx -lgmp"
   install -m 755 "$d4_src/demo/maxT/build/maxT" "$bin_dir/maxT"
+  ln -s maxT "$bin_dir/maxT_static"
 }
 
 install_ganak() {

@@ -1,0 +1,15 @@
+[project]
+name = "quokka-sharp-root"
+version = "0.1.0"
+requires-python = ">=3.13"
+dependencies = [
+    "quokka-sharp",
+]
+
+[tool.uv.sources]
+quokka-sharp = { path = "quokka_sharp", editable = true }
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+]

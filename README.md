@@ -4,13 +4,90 @@ Quokka-Sharp is a quantum circuit tool based on model counting. It provides four
 
 ## Setup
 
-From the repository root, run:
+First, make sure you have [`uv`](https://docs.astral.sh/uv/) installed.
+
+From the repository root:
+
+- Install all dependencies
+
+```bash
+uv sync
+```
+
+- Install all solvers
 
 ```bash
 ./scripts/setup-solvers.sh
 ```
 
-The solver binaries are installed in `.solvers/bin`. This step only installs the solvers. Remove `.solvers` before reinstalling.
+These solver binaries are installed under `.solvers/bin`:
+
+- **GPMC** (simulation, verification, equivalence): [GPMC on GitHub](https://github.com/System-Verification-Lab/GPMC)
+- **Ganak** (installed for experiments; not currently usable by changing the config alone): [Ganak releases](https://github.com/meelgroup/ganak/releases/tag/release/v2.7.0)
+- **d4max** (synthesis only): [d4v2 on GitHub](https://github.com/jm62300/d4)
+
+---
+
+## Development
+
+Activate the environment:
+
+```bash
+source .venv/bin/activate
+```
+
+Make sure the solvers are on $PATH:
+
+```bash
+export PATH="$PWD/.solvers/bin:$PATH"
+```
+
+To run a python file:
+
+```bash
+python tests/example_quokka_sharp.py
+```
+
+To run the tests:
+
+```bash
+pytest tests/
+```
+
+---
+
+## Configuration
+
+No configuration file is needed for the setup above. By default, Quokka-Sharp uses `gpmc -mode=1` for simulation, verification, and equivalence and `maxT_static` (`maxT`) for synthesis.
+
+However, it's possible to modify the configuration used. To do so, create a .json file with only keys you want to override. For example:
+
+```json
+{
+  "DEBUG": true,
+  "TIMEOUT": 600
+}
+```
+
+Note that this is the default configuration:
+
+```json
+{
+  "DEBUG": false,
+  "TIMEOUT": 300,
+  "ToolInvocation": "gpmc -mode=1",
+  "D4ToolInvocation": "maxT_static",
+  "GetResult": "exact.double.prec-sci.(.+?)\\\\nc s",
+  "FPE": 1e-12,
+  "Precision": 50
+}
+```
+
+To use the configuration file set `QUOKKA_CONFIG` to that file before starting Python:
+
+```bash
+export QUOKKA_CONFIG=/path/to/config.json
+```
 
 ---
 
