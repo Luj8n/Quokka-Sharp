@@ -14,5 +14,8 @@ exclude = [
   "quokka_sharp/quokka_sharp/encoding/pauli2cnf.py",
 ]
 
+[tool.pyright]
+extraPaths = ["quokka_sharp"]
+
 [dependency-groups]
 dev = ["pytest>=9.1.1", "ruff>=0.16.9"]
