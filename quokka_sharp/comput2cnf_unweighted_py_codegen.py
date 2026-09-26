@@ -1,34 +1,41 @@
 from comput2cnf_py_codegen import *
 
-def add_sign(func, prefix = "", comment=""):
-    print(prefix+f"        # adding sign if {func}")
-    print(prefix+"        R = cnf.add_var()")
-    print(prefix+"        cnf.vars.RVar.append(R)")    
-    print(prefix+"        r = cnf.vars.r")
-    print(prefix+"        cnf.vars.r = R")
-    to_py(	                  Equivalent(R, r ^ func), prefix, comment="- "+comment)
 
-def add_i(func, prefix = "", comment=""):
-    print(prefix+f"        # adding i if {func}")
-    print(prefix+"        I = cnf.add_var()")
-    print(prefix+"        cnf.vars.IVar.append(I)")    
-    print(prefix+"        i = cnf.vars.i")
-    to_py(	                  Equivalent(I, i ^ func), prefix, comment="i "+comment)
+def add_sign(func, prefix="", comment=""):
+    print(prefix + f"        # adding sign if {func}")
+    print(prefix + "        R = cnf.add_var()")
+    print(prefix + "        cnf.vars.RVar.append(R)")
+    print(prefix + "        r = cnf.vars.r")
+    print(prefix + "        cnf.vars.r = R")
+    to_py(Equivalent(R, r ^ func), prefix, comment="- " + comment)
+
+
+def add_i(func, prefix="", comment=""):
+    print(prefix + f"        # adding i if {func}")
+    print(prefix + "        I = cnf.add_var()")
+    print(prefix + "        cnf.vars.IVar.append(I)")
+    print(prefix + "        i = cnf.vars.i")
+    to_py(Equivalent(I, i ^ func), prefix, comment="i " + comment)
     add_sign(i & ~I, prefix)
-    print(prefix+"        cnf.vars.i = I")
+    print(prefix + "        cnf.vars.i = I")
 
-def add_sqrt_half(func, prefix = "", comment=""):
-    print(prefix+"        U = cnf.add_var()")
-    print(prefix+"        cnf.vars.UVar.append(U)")    
-    print(prefix+"        cnf.power_two_normalisation += 0.5 ")
-    print(prefix+"        u = cnf.vars.u")
-    print(prefix+"        cnf.vars.u = U")
-    to_py(	                  Equivalent(U, u ^ ~func), prefix, comment="sqrt U update "+comment)
+
+def add_sqrt_half(func, prefix="", comment=""):
+    print(prefix + "        U = cnf.add_var()")
+    print(prefix + "        cnf.vars.UVar.append(U)")
+    print(prefix + "        cnf.power_two_normalisation += 0.5 ")
+    print(prefix + "        u = cnf.vars.u")
+    print(prefix + "        cnf.vars.u = U")
+    to_py(Equivalent(U, u ^ ~func), prefix, comment="sqrt U update " + comment)
     print()
-    print(prefix+"        D = cnf.add_var()")
-    print(prefix+"        cnf.vars.DVar.append(D)")    
-    print(prefix+f"        cnf.add_clause([D, cnf.add_var()], comment=\"sqrt D double {comment}\")")
-    to_py(	                  Equivalent(D, u & ~U), prefix, comment="sqrt D update "+comment)
+    print(prefix + "        D = cnf.add_var()")
+    print(prefix + "        cnf.vars.DVar.append(D)")
+    print(
+        prefix
+        + f'        cnf.add_clause([D, cnf.add_var()], comment="sqrt D double {comment}")'
+    )
+    to_py(Equivalent(D, u & ~U), prefix, comment="sqrt D update " + comment)
+
 
 def main():
 
@@ -40,9 +47,9 @@ def main():
     print("from .pauli2cnf import pauli2cnf")
     print()
     print("class comput2cnf:")
-    print('''    \"\"\"
+    print("""    \"\"\"
     This class contains the functions to convert a quantum circuit to CNF clauses in the Computationl basis.
-    \"\"\"''')
+    \"\"\"""")
     print()
 
     # Initialization:
@@ -58,7 +65,7 @@ def main():
     # H:
     print("    def H2CNF(cnf, k):")
     print("        x = cnf.vars.x")
-    print()   
+    print()
     print("        X = cnf.add_var()")
     print("        cnf.vars.XVar.append(X)")
     print()
@@ -69,68 +76,70 @@ def main():
     print("        cnf.vars.x[k] = X")
     print()
 
-    #CNOT
+    # CNOT
     print("    def CNOT2CNF(cnf, c, t):")
     print("        x = cnf.vars.x")
     print()
     print("        Xt = cnf.add_var()")
     print("        cnf.vars.XVar.append(Xt)")
-    to_py(	       Equivalent(Xt, (x[c] ^ x[t])))
+    to_py(Equivalent(Xt, (x[c] ^ x[t])))
     print()
     print("        cnf.vars.x[t] = Xt")
     print()
 
-    #TOFFOLI
+    # TOFFOLI
     print("    def CCX2CNF(cnf, k, c, t):")
     print("        x = cnf.vars.x")
     print()
     print("        Xt = cnf.add_var()")
     print("        cnf.vars.XVar.append(Xt)")
-    to_py(	       Equivalent(Xt, ((x[k] & x[c]) ^ x[t])))
+    to_py(Equivalent(Xt, ((x[k] & x[c]) ^ x[t])))
     print()
     print("        cnf.vars.x[t] = Xt")
     print()
 
-    #Z
+    # Z
     print("    def Z2CNF(cnf, k):")
     print("        x = cnf.vars.x")
     print()
     add_sign(x[k])
     print()
 
-    #RZ(theta)
+    # RZ(theta)
     print("    def RZ2CNF(cnf, k, theta):")
     print("        x = cnf.vars.x")
     print()
     print("        w = cnf.add_var()")
     print("        cnf.vars.UVar.append(w)")
-    print("        cnf.add_weight(w, complex(Decimal(math.cos(theta)), Decimal(math.sin(theta))), 1)")
-    to_py(	       Equivalent(w, x[k]), comment="w (RZ)")
+    print(
+        "        cnf.add_weight(w, complex(Decimal(math.cos(theta)), Decimal(math.sin(theta))), 1)"
+    )
+    to_py(Equivalent(w, x[k]), comment="w (RZ)")
     print()
 
-    #S
+    # S
     print("    def S2CNF(cnf, k):")
     print("        x = cnf.vars.x")
     print()
     add_i(x[k], comment="(S)")
     print()
 
-    #Sdg
+    # Sdg
     print("    def Sdg2CNF(cnf, k):")
-    print("        x = cnf.vars.x") 
+    print("        x = cnf.vars.x")
     add_i(x[k], comment="(Sdg)")
     print()
     add_sign(x[k], comment="(Sdg)")
     print()
 
-    #T
+    # T
     print("    def T2CNF(cnf, k):")
     print("        x = cnf.vars.x")
     print("        i = cnf.vars.i")
     print()
     print("        I = cnf.add_var()")
     print("        cnf.vars.IVar.append(I)")
-    to_py(             x[k] | Equivalent(I, i), comment="I (T)")
+    to_py(x[k] | Equivalent(I, i), comment="I (T)")
     print()
     add_sign(i & ~I, comment="(T)")
     print()
@@ -138,14 +147,14 @@ def main():
     print()
     print("        cnf.vars.i = I")
 
-    #Tdg
+    # Tdg
     print("    def Tdg2CNF(cnf, k):")
     print("        x = cnf.vars.x")
     print("        i = cnf.vars.i")
     print()
     print("        I = cnf.add_var()")
     print("        cnf.vars.IVar.append(I)")
-    to_py(             x[k] | Equivalent(I, i), comment="I (Tdg)")
+    to_py(x[k] | Equivalent(I, i), comment="I (Tdg)")
     print()
     add_sign(~i & I, comment="(Tdg)")
     print()
@@ -153,24 +162,24 @@ def main():
     print()
     print("        cnf.vars.i = I")
 
-    #X
+    # X
     print("    def X2CNF(cnf, k):")
     print("        x = cnf.vars.x")
     print()
     print("        X = cnf.add_var()")
     print("        cnf.vars.XVar.append(X)")
-    to_py(         Equivalent(X, ~x[k]))
+    to_py(Equivalent(X, ~x[k]))
     print()
     print("        cnf.vars.x[k] = X")
     print()
 
-    #Y
+    # Y
     print("    def Y2CNF(cnf, k):")
     print("        x = cnf.vars.x")
     print()
     print("        X = cnf.add_var()")
     print("        cnf.vars.XVar.append(X)")
-    to_py(         Equivalent(X, ~x[k]), comment="Y gate")
+    to_py(Equivalent(X, ~x[k]), comment="Y gate")
     print()
     add_sign(x[k])
     print()
@@ -179,7 +188,7 @@ def main():
     print("        cnf.vars.x[k] = X")
     print()
 
-    #RX(theta)
+    # RX(theta)
     print("    def RX2CNF(cnf, k, theta):")
     print("        x = cnf.vars.x")
     print("        X = cnf.add_var()")
@@ -187,24 +196,26 @@ def main():
     print()
     print("        w = cnf.add_var()")
     print("        cnf.vars.UVar.append(w)")
-    to_py(         Equivalent(w, Equivalent(x[k], X) ))
+    to_py(Equivalent(w, Equivalent(x[k], X)))
     print()
     print("        cnf.vars.x[k] = X")
     print()
-    print("        cnf.add_weight(w, complex(Decimal(math.cos(theta/2)), Decimal(math.sin(theta/2))), complex(0, -Decimal(math.sin(theta/2))))")
+    print(
+        "        cnf.add_weight(w, complex(Decimal(math.cos(theta/2)), Decimal(math.sin(theta/2))), complex(0, -Decimal(math.sin(theta/2))))"
+    )
     print()
 
-    #CZ
+    # CZ
     print("    def CZ2CNF(cnf, c, t):")
     print("        x = cnf.vars.x")
     print()
     print("        Xc = cnf.add_var()")
     print("        cnf.vars.XVar.append(Xc)")
-    to_py(         Equivalent(Xc, x[c]))
+    to_py(Equivalent(Xc, x[c]))
     print()
     print("        Xt = cnf.add_var()")
     print("        cnf.vars.XVar.append(Xt)")
-    to_py(         Equivalent(Xt, x[t]))
+    to_py(Equivalent(Xt, x[t]))
     print()
     print("        cnf.vars.x[c] = Xc")
     print("        cnf.vars.x[t] = Xt")
@@ -212,16 +223,16 @@ def main():
     add_sign(x[c] & x[t])
     print()
 
-    #SWAP
+    # SWAP
     print("    def SWAP2CNF(cnf, c, t):")
     print("        x = cnf.vars.x")
     print()
     print("        x[c], x[t] = x[t], x[c]")
     print()
 
-
     # Synthesis
     add_synthesis()
+
 
 if __name__ == "__main__":
     main()

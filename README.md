@@ -1,68 +1,95 @@
 # Quokka-Sharp
 
 Quokka-Sharp is a quantum circuit tool based on model counting. It provides four functionalities: **Simulate**, **Verify**, **Equivalence Checking**, and **Synthesis**.
----
 
-## Prerequisites
+## Setup
 
-Install the solvers required by Quokka-Sharp:
+First, make sure you have [`uv`](https://docs.astral.sh/uv/) installed.
 
-- **GPMC** (simulation, verification, equivalence): [GPMC on GitHub](https://github.com/System-Verification-Lab/GPMC)
-- **Ganak** (alternative WMC solver): [Ganak releases](https://github.com/meelgroup/ganak/releases/tag/release%2F2.4.4)
-- **d4max** (synthesis only): [d4v2 on GitHub](https://github.com/jm62300/d4)
+From the repository root:
 
-Then install Quokka-Sharp:
+- Install all dependencies
 
 ```bash
-pip install quokka_sharp
+uv sync
 ```
+
+- Install all solvers
+
+```bash
+./scripts/setup-solvers.sh
+```
+
+These solver binaries are installed under `.solvers/bin`:
+
+- **GPMC** (simulation, verification, equivalence): [GPMC on GitHub](https://github.com/System-Verification-Lab/GPMC)
+- **Ganak** (installed for experiments; not currently usable by changing the config alone): [Ganak releases](https://github.com/meelgroup/ganak/releases/tag/release/v2.7.0)
+- **d4max** (synthesis only): [d4v2 on GitHub](https://github.com/jm62300/d4)
+
+---
+
+## Development
+
+### Running code
+
+Activate the environment:
+
+```bash
+source .venv/bin/activate
+```
+
+Make sure the solvers are on $PATH:
+
+```bash
+export PATH="$PWD/.solvers/bin:$PATH"
+```
+
+To run a python file:
+
+```bash
+python tests/example_quokka_sharp.py
+```
+
+To run the tests:
+
+```bash
+pytest tests/
+```
+
+### Tooling
+
+The project uses `ruff` to format and check for warnings and errors.
 
 ---
 
 ## Configuration
 
-Copy the template and edit it to point at your solver binaries:
+No configuration file is needed for the setup above. By default, Quokka-Sharp uses `gpmc -mode=1` for simulation, verification, and equivalence and `maxT_static` (`maxT`) for synthesis.
 
-```bash
-cp config.example.json config.json
+However, it's possible to modify the configuration used. To do so, create a .json file with only keys you want to override. For example:
+
+```json
+{
+  "DEBUG": true,
+  "TIMEOUT": 600
+}
 ```
 
-**For GPMC (simulation / verification / equivalence):**
+Note that this is the default configuration:
+
 ```json
 {
   "DEBUG": false,
   "TIMEOUT": 300,
-  "ToolInvocation": "/path/to/gpmc -mode=1",
-  "GetResult": "exact.double.prec-sci.(.+?)\\nc s",
-  "FPE": 1e-12
-}
-```
-
-**For Ganak:**
-```json
-{
-  "DEBUG": false,
-  "TIMEOUT": 1,
-  "ToolInvocation": "/path/to/ganak --mode=6",
-  "GetResult": "c s exact arb cpx (.+?)\\nc",
-  "FPE": 1e-12
-}
-```
-
-**For d4max (synthesis):**
-```json
-{
-  "DEBUG": true,
-  "TIMEOUT": 1000,
-  "ToolInvocation": "/path/to/gpmc -mode=1",
-  "D4ToolInvocation": "/path/to/d4maxT",
-  "GetResult": "exact.double.prec-sci.(.+?)\\nc s",
+  "ToolInvocation": "gpmc -mode=1",
+  "D4ToolInvocation": "maxT_static",
+  "GetResult": "exact.double.prec-sci.(.+?)\\\\nc s",
   "FPE": 1e-12,
-  "Precision": 32
+  "Precision": 50
 }
 ```
 
-Set the environment variable before running anything:
+To use the configuration file set `QUOKKA_CONFIG` to that file before starting Python:
 
 ```bash
 export QUOKKA_CONFIG=/path/to/config.json
@@ -83,8 +110,8 @@ import quokka_sharp as qk
 
 prob = qk.functionalities.sim(
     qasmfile="circuit.qasm",
-    basis="comp",           # "comp" (computational) or "pauli"
-    measurement="allzero"   # "allzero", "firstzero", or {qubit: 0_or_1}
+    basis="comp",  # "comp" (computational) or "pauli"
+    measurement="allzero",  # "allzero", "firstzero", or {qubit: 0_or_1}
 )
 # Returns a float, "TIMEOUT", or "MEMOUT"
 ```
@@ -98,7 +125,7 @@ Check that a circuit maps a given input state to a given output state.
 res = qk.functionalities.verify(
     "circuit.qasm",
     basis="comp",
-    precons={0: 0, 1: 0},   # input  state constraints
+    precons={0: 0, 1: 0},  # input  state constraints
     postcons={0: 1, 1: 1},  # output state constraints
 )
 
@@ -106,8 +133,8 @@ res = qk.functionalities.verify(
 res = qk.functionalities.verify(
     "circuit.qasm",
     basis="pauli",
-    precons={0: "Z"},        # qubit 0 starts with the subspace defined by Z
-    postcons={0: "X"},       # qubit 0 ends in with the subspace defined by X
+    precons={0: "Z"},  # qubit 0 starts with the subspace defined by Z
+    postcons={0: "X"},  # qubit 0 ends in with the subspace defined by X
 )
 # Returns "True", "False", "TIMEOUT", or "MEMOUT"
 ```
@@ -120,9 +147,9 @@ Decide whether two circuits implement the same unitary.
 res = qk.functionalities.eq(
     "circuit1.qasm",
     "circuit2.qasm",
-    basis="comp",     # "comp" → use check="cyclic"
-    check="cyclic",   # "pauli" → use check="linear"
-    epsilon=0,        # 0 for exact equivalence
+    basis="comp",  # "comp" → use check="cyclic"
+    check="cyclic",  # "pauli" → use check="linear"
+    epsilon=0,  # 0 for exact equivalence
 )
 # Returns True, False, "TIMEOUT", or "MEMOUT"
 ```
@@ -133,15 +160,16 @@ Find the shortest circuit implementing a target unitary from a given gate set. R
 
 ```python
 import os
+
 os.makedirs("tmp", exist_ok=True)
 
 outcome, weight, qasm_str, layers = qk.functionalities.syn(
     "target.qasm",
     gate_set={"h", "cx", "s"},  # supported: "h", "cx", "s", "t", "cz", "csqrtx"
-    basis="pauli",               # synthesis works in Pauli basis only
-    fid=1.0,                     # target fidelity: 1.0 for exact synthesis
-    files_root="tmp",            # directory for intermediate CNF files
-    cyc_lin_encoding=True,       # use cyclic+linear encoding (recommended)
+    basis="pauli",  # synthesis works in Pauli basis only
+    fid=1.0,  # target fidelity: 1.0 for exact synthesis
+    files_root="tmp",  # directory for intermediate CNF files
+    cyc_lin_encoding=True,  # use cyclic+linear encoding (recommended)
 )
 # outcome : "FOUND" | "TIMEOUT" | "CRASH" | "ERROR#"
 # weight  : achieved fidelity (1.0 when FOUND)
@@ -151,7 +179,6 @@ outcome, weight, qasm_str, layers = qk.functionalities.syn(
 
 > **Note:** Use either `"t"` or `"csqrtx"` for CCX synthesis, but not both simultaneously. Currently, we only implemented choosing different gate sets in Pauli basis.
 
----
 ---
 
 # Test Suite
@@ -212,17 +239,17 @@ pytest tests/test_quokka_sharp.py -v
 
 Verifies `qk.functionalities.sim()` in both computational and Pauli bases.
 
-| Circuit | Basis | Measurement | Expected |
-|---|---|---|---|
-| Identity wire | comp | allzero | 1.0 |
-| H | comp | allzero | 0.5 |
-| X | comp | allzero | 0.0 |
-| Z, S, T | comp | allzero | 1.0 |
-| HH, XXXX | comp | allzero | 1.0 (self-inverse) |
-| HZH | comp | allzero | 0.0 (= X) |
-| Bell | comp | allzero | 0.5 — P(00) |
-| GHZ | comp | allzero | 0.5 — P(000) |
-| Bell Ψ− | pauli | allzero | 0.0 |
+| Circuit       | Basis | Measurement | Expected           |
+| ------------- | ----- | ----------- | ------------------ |
+| Identity wire | comp  | allzero     | 1.0                |
+| H             | comp  | allzero     | 0.5                |
+| X             | comp  | allzero     | 0.0                |
+| Z, S, T       | comp  | allzero     | 1.0                |
+| HH, XXXX      | comp  | allzero     | 1.0 (self-inverse) |
+| HZH           | comp  | allzero     | 0.0 (= X)          |
+| Bell          | comp  | allzero     | 0.5 — P(00)        |
+| GHZ           | comp  | allzero     | 0.5 — P(000)       |
+| Bell Ψ−       | pauli | allzero     | 0.0                |
 
 ### 2 · Verification (`TestVerification`)
 
@@ -232,32 +259,41 @@ Verifies `qk.functionalities.verify()` with both computational and Pauli basis p
 
 ```python
 # X flips the qubit
-qk.functionalities.verify("x.qasm", basis="comp",
-    precons={0: 0}, postcons={0: 1})   # → True
+qk.functionalities.verify(
+    "x.qasm", basis="comp", precons={0: 0}, postcons={0: 1}
+)  # → True
 
 # Toffoli fires only when both controls are set
-qk.functionalities.verify("toffoli.qasm", basis="comp",
-    precons={0: 1, 1: 1, 2: 0}, postcons={0: 1, 1: 1, 2: 1})  # → True
+qk.functionalities.verify(
+    "toffoli.qasm",
+    basis="comp",
+    precons={0: 1, 1: 1, 2: 0},
+    postcons={0: 1, 1: 1, 2: 1},
+)  # → True
 ```
 
 **Pauli basis** — stabilizer strings `{qubit: "Z"|"X"|"Y"|"I"}`:
 
 ```python
 # H swaps Z and X stabilizers: |0⟩ → |+⟩
-qk.functionalities.verify("h.qasm", basis="pauli",
-    precons={0: "Z"}, postcons={0: "X"})   # → True
+qk.functionalities.verify(
+    "h.qasm", basis="pauli", precons={0: "Z"}, postcons={0: "X"}
+)  # → True
 
 # S maps X-stabilizer to Y: |+⟩ → |i+⟩
-qk.functionalities.verify("s.qasm", basis="pauli",
-    precons={0: "X"}, postcons={0: "Y"})   # → True
+qk.functionalities.verify(
+    "s.qasm", basis="pauli", precons={0: "X"}, postcons={0: "Y"}
+)  # → True
 
 # CNOT: control in |0⟩ leaves target X-stab unchanged
-qk.functionalities.verify("cx.qasm", basis="pauli",
-    precons={0: "Z", 1: "X"}, postcons={0: "Z", 1: "X"})  # → True
+qk.functionalities.verify(
+    "cx.qasm", basis="pauli", precons={0: "Z", 1: "X"}, postcons={0: "Z", 1: "X"}
+)  # → True
 
 # CNOT entangles: q[0] alone is no longer X-stabilized after CX
-qk.functionalities.verify("cx.qasm", basis="pauli",
-    precons={0: "Z", 1: "X"}, postcons={0: "X", 1: "I"})  # → False
+qk.functionalities.verify(
+    "cx.qasm", basis="pauli", precons={0: "Z", 1: "X"}, postcons={0: "X", 1: "I"}
+)  # → False
 ```
 
 ### 3 · Equivalence Checking (`TestEquivalenceChecking`)
@@ -266,23 +302,23 @@ Verifies `qk.functionalities.eq()`. Use `check="cyclic"` with `basis="comp"` and
 
 **Equivalent pairs (→ True):**
 
-| Circuit A | Circuit B | Identity |
-|---|---|---|
-| HH | Identity | HH = I |
-| SS | Z | SS = Z |
-| HXH | Z | basis-change identity |
-| CX CX | Identity (2q) | CX is self-inverse |
+| Circuit A   | Circuit B     | Identity               |
+| ----------- | ------------- | ---------------------- |
+| HH          | Identity      | HH = I                 |
+| SS          | Z             | SS = Z                 |
+| HXH         | Z             | basis-change identity  |
+| CX CX       | Identity (2q) | CX is self-inverse     |
 | 3-CNOT SWAP | built-in SWAP | standard decomposition |
-| TT | S | TT = S |
+| TT          | S             | TT = S                 |
 
 **Non-equivalent pairs (→ False):**
 
-| Circuit A | Circuit B |
-|---|---|
-| H | X |
-| H | HS |
-| Bell (H+CX) | CX only |
-| Z | S |
+| Circuit A   | Circuit B |
+| ----------- | --------- |
+| H           | X         |
+| H           | HS        |
+| Bell (H+CX) | CX only   |
+| Z           | S         |
 
 ### 4 · Synthesis (`TestSynthesis`)
 
@@ -348,28 +384,28 @@ Example output:
 
 ```python
 # ── Simulation ──────────────────────────────────────────────
-SIM_FILE        = fixture("multi_qubit", "bell.qasm")
-SIM_BASIS       = "comp"          # "comp" or "pauli"
-SIM_MEASUREMENT = "allzero"       # "allzero", "firstzero", "{0:0,1:0}"
-                                  
+SIM_FILE = fixture("multi_qubit", "bell.qasm")
+SIM_BASIS = "comp"  # "comp" or "pauli"
+SIM_MEASUREMENT = "allzero"  # "allzero", "firstzero", "{0:0,1:0}"
+
 
 # ── Verification ────────────────────────────────────────────
-VER_FILE     = fixture("verify", "v01_x_flip.qasm")
-VER_BASIS    = "pauli"
-VER_PRECONS  = {0: "Z"}           # comp: {0: 0}   pauli: {0: "Z"}
+VER_FILE = fixture("verify", "v01_x_flip.qasm")
+VER_BASIS = "pauli"
+VER_PRECONS = {0: "Z"}  # comp: {0: 0}   pauli: {0: "Z"}
 VER_POSTCONS = {0: "X"}
 
 # ── Equivalence ─────────────────────────────────────────────
-EQ_FILE1  = fixture("equiv_pairs", "eq1_hh.qasm")
-EQ_FILE2  = fixture("equiv_pairs", "eq1_identity.qasm")
-EQ_BASIS  = "comp"                # pair with EQ_CHECK = "cyclic"
-EQ_CHECK  = "cyclic"              # "cyclic" (comp) or "linear" (pauli)
+EQ_FILE1 = fixture("equiv_pairs", "eq1_hh.qasm")
+EQ_FILE2 = fixture("equiv_pairs", "eq1_identity.qasm")
+EQ_BASIS = "comp"  # pair with EQ_CHECK = "cyclic"
+EQ_CHECK = "cyclic"  # "cyclic" (comp) or "linear" (pauli)
 
 # ── Synthesis ───────────────────────────────────────────────
-SYN_FILE        = fixture("synthesis", "syn01_h_target.qasm")
-SYN_GATE_SET    = {"h", "cx", "s"}
-SYN_FID         = 1.0             # 1.0 for exact synthesis
-SYN_FILES_ROOT  = "tmp"           # directory for intermediate CNF files
+SYN_FILE = fixture("synthesis", "syn01_h_target.qasm")
+SYN_GATE_SET = {"h", "cx", "s"}
+SYN_FID = 1.0  # 1.0 for exact synthesis
+SYN_FILES_ROOT = "tmp"  # directory for intermediate CNF files
 SYN_CYC_LIN_ENC = True
 ```
 
@@ -418,19 +454,20 @@ qasm_fixtures/
 ## Modifications
 
 ### code structure:
+
 The Quokka sharp repository has two main directories. The first directory is named quokka_sharp, and has the source code for the Quokka library. The second directory is named experiments, has examples on how to use the tool and benchmarks to test it.
 
-In the directory qukkora_sharp/quokka_sharp the main functionalities are implemented each in its own file and they use the core libraries defined within the quokka_sharp/quokka_sharp encoding. 
-
-
+In the directory qukkora_sharp/quokka_sharp the main functionalities are implemented each in its own file and they use the core libraries defined within the quokka_sharp/quokka_sharp encoding.
 
 ### extension of the encodings:
+
 Advanced users can extend `quokka-sharp` to support more quantum gates than the current gate set.  
 To do this, one needs to install [`SymPy`](https://docs.sympy.org/latest/index.html):
 
 ```bash
 pip install sympy
 ```
+
 The encoding supports a universal gate set: CNOT, CZ, H, S, T, RX, RZ.
 To add direct encoding of other gates, add new encoding in Quokka-Sharp/quokka_sharp/quokka_sharp/encoding/pauli2cnf_py_codegen.py or Quokka-Sharp/quokka_sharp/quokka_sharp/encoding/comput2cnf_py_codegen.py, depending on the basis.
 Then, update the ifelse cases at the "QASMparser" function in Quokka-Sharp/quokka_sharp/quokka_sharp/encoding/qasm_parser.py and the "encode_circuit" function in Quokka-Sharp/quokka_sharp/quokka_sharp/encoding/cnf.py.
@@ -439,34 +476,36 @@ Finally, run one of the following commands correspondingly:
 ```
 python3 pauli2cnf_py_codegen.py>pauli2cnf.py
 ```
+
 or
+
 ```
 python3 comput2cnf_py_codegen.py>comput2cnf.py
 ```
 
 ### updating the installation
+
 When changing the core files, Quokka# needs to be reinstalled from the local files. To do that, run:
+
 ```
-pip install ./quokka_sharp --force-reinstall 
+pip install ./quokka_sharp --force-reinstall
 ```
 
 ## Evaluation
 
-For evaluation of Quokka# please refer to [quokka-sharp-ae26]([https://github.com/System-Verification-Lab/quokka-sharp-artifacts](https://github.com/JingyiMei98/quokka-sharp-ae26))
-
+For evaluation of Quokka# please refer to [quokka-sharp-ae26](<[https://github.com/System-Verification-Lab/quokka-sharp-artifacts](https://github.com/JingyiMei98/quokka-sharp-ae26)>)
 
 ## 📚 Citation
 
 If you use the materials in this repository, please cite the following papers:
 
 1. **Simulating Quantum Circuits by Model Counting**  
-   *Jingyi Mei, Marcello Bonsangue, Alfons Laarman*  
-   *Proceedings of the 36th International Conference on Computer Aided Verification (CAV 2024)*
+   _Jingyi Mei, Marcello Bonsangue, Alfons Laarman_\
+   _Proceedings of the 36th International Conference on Computer Aided Verification (CAV 2024)_
 
 2. **Equivalence Checking of Quantum Circuits by Model Counting**  
-   *Jingyi Mei, Thijmen Coopmans, Marcello Bonsangue, Alfons Laarman*  
-   *Proceedings of the 12th International Joint Conference on Automated Reasoning (IJCAR 2024)*
-
+   _Jingyi Mei, Thijmen Coopmans, Marcello Bonsangue, Alfons Laarman_\
+   _Proceedings of the 12th International Joint Conference on Automated Reasoning (IJCAR 2024)_
 
 <details>
 <summary>📄 BibTeX</summary>
@@ -488,7 +527,8 @@ title="Equivalence Checking of Quantum Circuits by Model Counting",
 booktitle="Automated Reasoning",
 year="2024"
 }
- ```
+```
+
 </details>
 
 ## 📬 Contact
