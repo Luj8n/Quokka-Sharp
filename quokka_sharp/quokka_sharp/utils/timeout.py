@@ -3,7 +3,7 @@ from subprocess import Popen, PIPE, TimeoutExpired
 from .. import config as qc
 
 tool_invocation = qc.CONFIG["ToolInvocation"]
-get_result      = qc.CONFIG["GetResult"]
+get_result = qc.CONFIG["GetResult"]
 
 procdict = {}
 
@@ -12,16 +12,22 @@ procdict = {}
 import signal
 from contextlib import contextmanager
 
+
 class TimeoutException(Exception):
     pass
 
+
 class MemoutError(Exception):
     """Raised when a memory limit is exceeded or result indicates MEMOUT"""
+
     pass
+
 
 class MCError(Exception):
     """Raised when model counter has reported an error."""
+
     pass
+
 
 @contextmanager
 def timeout(seconds, on_timeout=None):

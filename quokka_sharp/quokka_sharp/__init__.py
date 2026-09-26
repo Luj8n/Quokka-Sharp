@@ -10,4 +10,3 @@ from .encoding import CNF
 from .encoding import Variables
 from .encoding import QASMparser
 from .encoding import QASM2CNF
-

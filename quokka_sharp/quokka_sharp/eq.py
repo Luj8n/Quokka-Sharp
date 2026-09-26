@@ -13,17 +13,17 @@ from . import config as qc
 from decimal import Decimal, getcontext
 
 
-
 procdict = {}
+
 
 # define Python user-defined exceptions
 class InvalidProcessNumException(Exception):
     "Raised when the process number is invalid"
+
     pass
 
 
 def get_result(result, expected_prob, sqaure, epsilon):
-    
     """
     Analyse the weighted model counting result to decide the circuits are equivalent or not:
     if the result matches the expected probablity then the circuits are equivalent otherwise they are not.
@@ -34,21 +34,23 @@ def get_result(result, expected_prob, sqaure, epsilon):
     Returns:
         True if the circuits are equivalent otherwise False
     """
-    
+
     # Global constants from config
-    DEBUG           = qc.CONFIG["DEBUG"]
-    FPE             = qc.CONFIG["FPE"]
-    precision       = qc.CONFIG["Precision"]
+    DEBUG = qc.CONFIG["DEBUG"]
+    FPE = qc.CONFIG["FPE"]
+    precision = qc.CONFIG["Precision"]
 
     getcontext().prec = precision
     prob = parse_wmc_result(result, sqaure)
-    if DEBUG: print("probability:", prob)
+    if DEBUG:
+        print("probability:", prob)
     if abs(prob - expected_prob) < (expected_prob * (Decimal(FPE) + Decimal(epsilon))):
         return True
     else:
         return False
 
-def basis(i, Z_or_X, cnf:'CNF', cnf_file_root):
+
+def basis(i, Z_or_X, cnf: "CNF", cnf_file_root):
     """
     Create cnf file for each of the basis in the linear check
     Args:
@@ -63,11 +65,14 @@ def basis(i, Z_or_X, cnf:'CNF', cnf_file_root):
     cnf_temp.rightProjectZXi(Z_or_X, i)
     cnf_temp.leftProjectZXi(Z_or_X, i)
 
-    cnf_file = os.path.join(cnf_file_root, "quokka_eq_check_"+ ("Z" if Z_or_X else "X") + str(i) + ".cnf")
+    cnf_file = os.path.join(
+        cnf_file_root, "quokka_eq_check_" + ("Z" if Z_or_X else "X") + str(i) + ".cnf"
+    )
     cnf_temp.write_to_file(cnf_file)
     return cnf_file
 
-def identity_check(cnf:'CNF', cnf_file_root, constrain_2n = False, constrain_no_Y = False):
+
+def identity_check(cnf: "CNF", cnf_file_root, constrain_2n=False, constrain_no_Y=False):
     """
     Add idenity clauses to the encoding
     Args:
@@ -79,13 +84,20 @@ def identity_check(cnf:'CNF', cnf_file_root, constrain_2n = False, constrain_no_
         cnf_file  :  the path of the generated cnf file
     """
     cnf_temp = copy.deepcopy(cnf)
-    cnf_temp.add_identity_clauses(constrain_2n = constrain_2n, constrain_no_Y = constrain_no_Y)
+    cnf_temp.add_identity_clauses(
+        constrain_2n=constrain_2n, constrain_no_Y=constrain_no_Y
+    )
 
-    cnf_file = os.path.join(cnf_file_root, f"quokka_eq_check_identity_{random.random()}.cnf")
+    cnf_file = os.path.join(
+        cnf_file_root, f"quokka_eq_check_identity_{random.random()}.cnf"
+    )
     cnf_temp.write_to_file(cnf_file)
     return cnf_file
 
-def CheckEquivalence(cnf: 'CNF', cnf_file_root = tempfile.gettempdir(), check = "cyclic", N=16, epsilon = 0):
+
+def CheckEquivalence(
+    cnf: "CNF", cnf_file_root=tempfile.gettempdir(), check="cyclic", N=16, epsilon=0
+):
     """
     Check if the given circuit is equivalent to the identity
     Args:
@@ -99,10 +111,10 @@ def CheckEquivalence(cnf: 'CNF', cnf_file_root = tempfile.gettempdir(), check = 
     global procdict  # make sure handler sees this
 
     # Global constants from config
-    DEBUG           = qc.CONFIG["DEBUG"]
-    TIMEOUT         = qc.CONFIG["TIMEOUT"]
+    DEBUG = qc.CONFIG["DEBUG"]
+    TIMEOUT = qc.CONFIG["TIMEOUT"]
     tool_invocation = qc.CONFIG["ToolInvocation"]
-    precision       = qc.CONFIG["Precision"]
+    precision = qc.CONFIG["Precision"]
 
     getcontext().prec = precision
 
@@ -119,10 +131,11 @@ def CheckEquivalence(cnf: 'CNF', cnf_file_root = tempfile.gettempdir(), check = 
                 p.communicate(timeout=0.2)
             except Exception:
                 pass
-    
-    
-    if DEBUG: print()
-    if DEBUG: print(f"comp: {cnf.computational_basis}, check: {check}")
+
+    if DEBUG:
+        print()
+    if DEBUG:
+        print(f"comp: {cnf.computational_basis}, check: {check}")
 
     try:
         cnf_file_list = []
@@ -147,7 +160,9 @@ def CheckEquivalence(cnf: 'CNF', cnf_file_root = tempfile.gettempdir(), check = 
             if check == "cyclic":
                 if N > 1:
                     raise InvalidProcessNumException
-                cnf_file_list.append(identity_check(cnf, cnf_file_root, constrain_2n = False))
+                cnf_file_list.append(
+                    identity_check(cnf, cnf_file_root, constrain_2n=False)
+                )
                 if cnf.computational_basis:
                     expected_prob = Decimal(2**cnf.n)
                     expected_abs_value = False
@@ -157,13 +172,17 @@ def CheckEquivalence(cnf: 'CNF', cnf_file_root = tempfile.gettempdir(), check = 
             elif check == "cyclic_linear":
                 if N > 1:
                     raise InvalidProcessNumException
-                cnf_file_list.append(identity_check(cnf, cnf_file_root, constrain_2n = True))
-                expected_prob = Decimal(2*cnf.n)
+                cnf_file_list.append(
+                    identity_check(cnf, cnf_file_root, constrain_2n=True)
+                )
+                expected_prob = Decimal(2 * cnf.n)
                 expected_abs_value = False
             elif check == "cyclic_noY":
                 if N > 1:
                     raise InvalidProcessNumException
-                cnf_file_list.append(identity_check(cnf, cnf_file_root, constrain_no_Y = True))
+                cnf_file_list.append(
+                    identity_check(cnf, cnf_file_root, constrain_no_Y=True)
+                )
                 expected_prob = Decimal(3**cnf.n)
                 expected_abs_value = False
             elif check == "linear":
@@ -177,10 +196,11 @@ def CheckEquivalence(cnf: 'CNF', cnf_file_root = tempfile.gettempdir(), check = 
                     expected_abs_value = False
             else:
                 raise ValueError(f"Invalid check type {check}")
-            if DEBUG: print(f"expected: {expected_prob}")
+            if DEBUG:
+                print(f"expected: {expected_prob}")
 
             result = True
-            tool_command = tool_invocation.split(' ')
+            tool_command = tool_invocation.split(" ")
             # parallel processes
             # N = 16
             while True:
@@ -189,22 +209,27 @@ def CheckEquivalence(cnf: 'CNF', cnf_file_root = tempfile.gettempdir(), check = 
                 for i in range(min(N, length)):
                     cnf_file = cnf_file_list[i]
                     tool_file_command = tool_command + [cnf_file]
-                    
-                    if DEBUG: 
+
+                    if DEBUG:
                         print(" ".join(tool_file_command))
-                        
-                    p = Popen(tool_file_command, stdout= PIPE, stderr=PIPE, start_new_session=True)
+
+                    p = Popen(
+                        tool_file_command,
+                        stdout=PIPE,
+                        stderr=PIPE,
+                        start_new_session=True,
+                    )
                     procdict[p.pid] = p
-                    
+
                 if len(procdict) == 0:
                     break
-                
+
                 while procdict:
                     # Enforce a single shared timeout for all subprocesses
                     if time.monotonic() > deadline:
                         cleanup()
                         return "TIMEOUT"
-                    
+
                     #  Non-blocking wait: allows periodic timeout checks
                     pid, _ = os.waitpid(-1, os.WNOHANG)
                     if pid == 0:
@@ -212,11 +237,11 @@ def CheckEquivalence(cnf: 'CNF', cnf_file_root = tempfile.gettempdir(), check = 
                         time.sleep(0.05)
                         continue
                     p = procdict.get(pid)
-                    
+
                     if p is None:
                         # Reaped an unrelated child process
                         continue
-                    
+
                     out, err = p.communicate()
                     result = get_result(out, expected_prob, expected_abs_value, epsilon)
 
@@ -224,11 +249,11 @@ def CheckEquivalence(cnf: 'CNF', cnf_file_root = tempfile.gettempdir(), check = 
                         # Early termination: kill all remaining subprocesses
                         cleanup()
                         return result
-                    
+
                     procdict.pop(pid, None)
 
                 if length > N:
-                    cnf_file_list = cnf_file_list[N: length]
+                    cnf_file_list = cnf_file_list[N:length]
                 else:
                     break
             return result

@@ -12,23 +12,34 @@ env_dir="$local_dir/env"
 src_dir="$local_dir/src"
 
 case "$(uname -s):$(uname -m)" in
-  Linux:x86_64)
-    platform=linux-64; ganak_platform=linux-amd64
-    mamba_sha=366cd9cd8be14df1ab8ed50352a82111082a36686b2d389fdb79a92c3fafb3e3
-    ganak_sha=ac84b42eb83a23ce8b09f2468ea59468ec4948321d9696216c6528603a33eb63 ;;
-  Linux:aarch64|Linux:arm64)
-    platform=linux-aarch64; ganak_platform=linux-arm64
-    mamba_sha=9f93b974adcb4d166996af969b6cd371287d1a3e52733704727884d9b74cb7a7
-    ganak_sha=8a01f915792d22e41631dc6e94396f71d7d372f1b44fc51eacca970666ccfb38 ;;
-  Darwin:x86_64)
-    platform=osx-64; ganak_platform=mac-x86_64
-    mamba_sha=1e71054bb3ac9a076e21f7ec48acfef536f9b3f1408f371a942784bf5ef83d8a
-    ganak_sha=ccced5273894fe28cd3c145d427b2161d790a1373faf351df8824ba498874428 ;;
-  Darwin:arm64)
-    platform=osx-arm64; ganak_platform=mac-arm64
-    mamba_sha=ec2a072f028e1a7cf20f3e2e74d5a8127cf5a5f27636375b5359811565f4e5be
-    ganak_sha=b527c061cc101744dd1b0e641aee2cde2c2a606556cfd3b8c0e31c495bd6bc46 ;;
-  *) echo "Unsupported platform: $(uname -s) $(uname -m)" >&2; exit 1 ;;
+Linux:x86_64)
+  platform=linux-64
+  ganak_platform=linux-amd64
+  mamba_sha=366cd9cd8be14df1ab8ed50352a82111082a36686b2d389fdb79a92c3fafb3e3
+  ganak_sha=ac84b42eb83a23ce8b09f2468ea59468ec4948321d9696216c6528603a33eb63
+  ;;
+Linux:aarch64 | Linux:arm64)
+  platform=linux-aarch64
+  ganak_platform=linux-arm64
+  mamba_sha=9f93b974adcb4d166996af969b6cd371287d1a3e52733704727884d9b74cb7a7
+  ganak_sha=8a01f915792d22e41631dc6e94396f71d7d372f1b44fc51eacca970666ccfb38
+  ;;
+Darwin:x86_64)
+  platform=osx-64
+  ganak_platform=mac-x86_64
+  mamba_sha=1e71054bb3ac9a076e21f7ec48acfef536f9b3f1408f371a942784bf5ef83d8a
+  ganak_sha=ccced5273894fe28cd3c145d427b2161d790a1373faf351df8824ba498874428
+  ;;
+Darwin:arm64)
+  platform=osx-arm64
+  ganak_platform=mac-arm64
+  mamba_sha=ec2a072f028e1a7cf20f3e2e74d5a8127cf5a5f27636375b5359811565f4e5be
+  ganak_sha=b527c061cc101744dd1b0e641aee2cde2c2a606556cfd3b8c0e31c495bd6bc46
+  ;;
+*)
+  echo "Unsupported platform: $(uname -s) $(uname -m)" >&2
+  exit 1
+  ;;
 esac
 
 gpmc_rev=df1aea7769887b62f59b803293678a1bbc5fe06d
@@ -49,7 +60,10 @@ main() {
 check_bootstrap_tools() {
   local tool
   for tool in curl tar; do
-    command -v "$tool" >/dev/null || { echo "Required bootstrap tool missing: $tool" >&2; return 1; }
+    command -v "$tool" >/dev/null || {
+      echo "Required bootstrap tool missing: $tool" >&2
+      return 1
+    }
   done
 }
 
@@ -73,9 +87,15 @@ install_toolchain() {
     'cmake>=4.1' make \
     cxx-compiler gmp mpfr zlib boost-cpp "${extra_packages[@]}"
   for candidate in "$env_dir/bin/"*-conda-linux-gnu-ar "$env_dir/bin/"*-apple-darwin*-ar; do
-    if [[ -x "$candidate" ]]; then ln -sf "$candidate" "$env_dir/bin/ar"; break; fi
+    if [[ -x "$candidate" ]]; then
+      ln -sf "$candidate" "$env_dir/bin/ar"
+      break
+    fi
   done
-  [[ -L "$env_dir/bin/ar" ]] || { echo "Local GNU ar was not installed" >&2; return 1; }
+  [[ -L "$env_dir/bin/ar" ]] || {
+    echo "Local GNU ar was not installed" >&2
+    return 1
+  }
 }
 
 download_verified() {
@@ -86,11 +106,16 @@ download_verified() {
 check_sha() {
   local actual
   if command -v sha256sum >/dev/null; then
-    actual=$(sha256sum "$1"); actual=${actual%% *}
+    actual=$(sha256sum "$1")
+    actual=${actual%% *}
   else
-    actual=$(shasum -a 256 "$1"); actual=${actual%% *}
+    actual=$(shasum -a 256 "$1")
+    actual=${actual%% *}
   fi
-  [[ "$actual" == "$2" ]] || { echo "Checksum mismatch: $1" >&2; exit 1; }
+  [[ "$actual" == "$2" ]] || {
+    echo "Checksum mismatch: $1" >&2
+    exit 1
+  }
 }
 
 build_gpmc() {
@@ -132,7 +157,7 @@ install_ganak() {
 
 cleanup() {
   local status=$?
-  if (( status == 0 )); then
+  if ((status == 0)); then
     rm -f "$local_dir/ganak.tar.gz"
   else
     echo "Setup failed; removing the incomplete .solvers directory" >&2

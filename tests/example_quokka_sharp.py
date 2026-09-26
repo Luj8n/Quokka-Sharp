@@ -24,14 +24,18 @@ import quokka_sharp as qk
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 
+
 def to_float(v) -> float:
     """Convert Decimal / float / int to plain Python float."""
     return float(v)
 
+
 FIXTURES = os.path.join(os.path.dirname(__file__), "qasm_fixtures")
+
 
 def fixture(subdir: str, filename: str) -> str:
     return os.path.join(FIXTURES, subdir, filename)
+
 
 def section(title: str):
     print()
@@ -39,8 +43,10 @@ def section(title: str):
     print(f"  {title}")
     print("═" * 60)
 
+
 def result_line(label: str, value):
     print(f"  {label:<32} {value}")
+
 
 # ══════════════════════════════════════════════════════════════════════════════
 # 1.  SIMULATION
@@ -61,21 +67,22 @@ section("1 · SIMULATION")
 #                  (Variables.projector missing var_curr argument).
 #                  Use "allzero" / "firstzero" when possible.
 
-SIM_FILE        = fixture("multi_qubit", "bell.qasm")   # ← change me
-SIM_BASIS       = "comp"                                 # ← "comp" or "pauli"
-SIM_MEASUREMENT = "allzero"                              # ← see options above
+SIM_FILE = fixture("multi_qubit", "bell.qasm")  # ← change me
+SIM_BASIS = "comp"  # ← "comp" or "pauli"
+SIM_MEASUREMENT = "allzero"  # ← see options above
 
 prob = qk.functionalities.sim(
-    qasmfile    = SIM_FILE,
-    basis       = SIM_BASIS,
-    measurement = SIM_MEASUREMENT,
+    qasmfile=SIM_FILE,
+    basis=SIM_BASIS,
+    measurement=SIM_MEASUREMENT,
 )
 
-result_line("Circuit:",     os.path.basename(SIM_FILE))
-result_line("Basis:",       SIM_BASIS)
+result_line("Circuit:", os.path.basename(SIM_FILE))
+result_line("Basis:", SIM_BASIS)
 result_line("Measurement:", SIM_MEASUREMENT)
-result_line("Probability:", prob if prob in ("TIMEOUT", "MEMOUT")
-                            else f"{to_float(prob):.10f}")
+result_line(
+    "Probability:", prob if prob in ("TIMEOUT", "MEMOUT") else f"{to_float(prob):.10f}"
+)
 
 # ── More examples to try (uncomment one at a time) ────────────────────────────
 #
@@ -125,23 +132,23 @@ section("2 · VERIFICATION")
 # Result: True  → circuit always maps precons → postcons
 #         False → it does NOT
 
-VER_FILE     = fixture("verify", "v04_cx_control1.qasm")  # ← change me
-VER_BASIS    = "comp"                                      # ← "comp" or "pauli"
-VER_PRECONS  = {0: 0, 1: 0}                               # ← input  state
-VER_POSTCONS = {0: 1, 1: 1}                               # ← output state
+VER_FILE = fixture("verify", "v04_cx_control1.qasm")  # ← change me
+VER_BASIS = "comp"  # ← "comp" or "pauli"
+VER_PRECONS = {0: 0, 1: 0}  # ← input  state
+VER_POSTCONS = {0: 1, 1: 1}  # ← output state
 
 verified = qk.functionalities.verify(
     VER_FILE,
-    basis    = VER_BASIS,
-    precons  = VER_PRECONS,
-    postcons = VER_POSTCONS,
+    basis=VER_BASIS,
+    precons=VER_PRECONS,
+    postcons=VER_POSTCONS,
 )
 
-result_line("Circuit:",       os.path.basename(VER_FILE))
-result_line("Basis:",         VER_BASIS)
-result_line("Precondition:",  VER_PRECONS)
+result_line("Circuit:", os.path.basename(VER_FILE))
+result_line("Basis:", VER_BASIS)
+result_line("Precondition:", VER_PRECONS)
 result_line("Postcondition:", VER_POSTCONS)
-result_line("Result:",        verified)
+result_line("Result:", verified)
 
 # ── More examples to try (uncomment one at a time) ────────────────────────────
 #
@@ -205,23 +212,23 @@ section("3 · EQUIVALENCE CHECKING")
 #             "pauli"  → use EQ_CHECK = "linear"
 # EQ_EPSILON: 0 for exact equivalence
 
-EQ_FILE1   = fixture("equiv_pairs", "eq1_hh.qasm")       # ← change me
-EQ_FILE2   = fixture("equiv_pairs", "eq1_identity.qasm")  # ← change me
-EQ_BASIS   = "comp"                                        # ← "comp" or "pauli"
-EQ_CHECK   = "cyclic"                                      # ← "cyclic" or "linear"
-EQ_EPSILON = 0                                             # ← 0 for exact
+EQ_FILE1 = fixture("equiv_pairs", "eq1_hh.qasm")  # ← change me
+EQ_FILE2 = fixture("equiv_pairs", "eq1_identity.qasm")  # ← change me
+EQ_BASIS = "comp"  # ← "comp" or "pauli"
+EQ_CHECK = "cyclic"  # ← "cyclic" or "linear"
+EQ_EPSILON = 0  # ← 0 for exact
 
 equiv = qk.functionalities.eq(
     EQ_FILE1,
     EQ_FILE2,
-    basis   = EQ_BASIS,
-    check   = EQ_CHECK,
-    epsilon = EQ_EPSILON,
+    basis=EQ_BASIS,
+    check=EQ_CHECK,
+    epsilon=EQ_EPSILON,
 )
 
-result_line("Circuit A:",  os.path.basename(EQ_FILE1))
-result_line("Circuit B:",  os.path.basename(EQ_FILE2))
-result_line("Basis:",      EQ_BASIS)
+result_line("Circuit A:", os.path.basename(EQ_FILE1))
+result_line("Circuit B:", os.path.basename(EQ_FILE2))
+result_line("Basis:", EQ_BASIS)
 result_line("Check mode:", EQ_CHECK)
 result_line("Equivalent:", equiv)
 
@@ -278,29 +285,29 @@ section("4 · SYNTHESIS")
 #   qasm_str: synthesised circuit as a QASM string
 #   layers  : circuit depth of the solution
 
-SYN_FILE        = fixture("synthesis", "syn01_h_target.qasm")  # ← change me
-SYN_GATE_SET    = {"h", "cx", "s"}                             # ← change me
-SYN_FID         = 1.0                                          # ← 1.0 for exact
-SYN_FILES_ROOT  = "tmp"                                        # ← writable dir
-SYN_CYC_LIN_ENC = True                                         # ← recommended
+SYN_FILE = fixture("synthesis", "syn01_h_target.qasm")  # ← change me
+SYN_GATE_SET = {"h", "cx", "s"}  # ← change me
+SYN_FID = 1.0  # ← 1.0 for exact
+SYN_FILES_ROOT = "tmp"  # ← writable dir
+SYN_CYC_LIN_ENC = True  # ← recommended
 
 os.makedirs(SYN_FILES_ROOT, exist_ok=True)
 
 outcome, weight, qasm_str, layers = qk.functionalities.syn(
     SYN_FILE,
-    basis            = "pauli",
-    fid              = SYN_FID,
-    files_root       = SYN_FILES_ROOT,
-    cyc_lin_encoding = SYN_CYC_LIN_ENC,
-    gate_set         = SYN_GATE_SET,
+    basis="pauli",
+    fid=SYN_FID,
+    files_root=SYN_FILES_ROOT,
+    cyc_lin_encoding=SYN_CYC_LIN_ENC,
+    gate_set=SYN_GATE_SET,
 )
 
-result_line("Target circuit:",    os.path.basename(SYN_FILE))
-result_line("Gate set:",          str(SYN_GATE_SET))
-result_line("Target fidelity:",   SYN_FID)
-result_line("Outcome:",           outcome)
+result_line("Target circuit:", os.path.basename(SYN_FILE))
+result_line("Gate set:", str(SYN_GATE_SET))
+result_line("Target fidelity:", SYN_FID)
+result_line("Outcome:", outcome)
 result_line("Achieved fidelity:", f"{float(weight):.6f}" if weight is not None else "—")
-result_line("Depth (layers):",    layers)
+result_line("Depth (layers):", layers)
 
 if outcome == "FOUND" and qasm_str:
     print()

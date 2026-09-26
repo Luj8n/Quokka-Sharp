@@ -30,6 +30,8 @@ These solver binaries are installed under `.solvers/bin`:
 
 ## Development
 
+### Running code
+
 Activate the environment:
 
 ```bash
@@ -53,6 +55,10 @@ To run the tests:
 ```bash
 pytest tests/
 ```
+
+### Tooling
+
+The project uses `ruff` to format and check for warnings and errors.
 
 ---
 
@@ -104,8 +110,8 @@ import quokka_sharp as qk
 
 prob = qk.functionalities.sim(
     qasmfile="circuit.qasm",
-    basis="comp",           # "comp" (computational) or "pauli"
-    measurement="allzero"   # "allzero", "firstzero", or {qubit: 0_or_1}
+    basis="comp",  # "comp" (computational) or "pauli"
+    measurement="allzero",  # "allzero", "firstzero", or {qubit: 0_or_1}
 )
 # Returns a float, "TIMEOUT", or "MEMOUT"
 ```
@@ -119,7 +125,7 @@ Check that a circuit maps a given input state to a given output state.
 res = qk.functionalities.verify(
     "circuit.qasm",
     basis="comp",
-    precons={0: 0, 1: 0},   # input  state constraints
+    precons={0: 0, 1: 0},  # input  state constraints
     postcons={0: 1, 1: 1},  # output state constraints
 )
 
@@ -127,8 +133,8 @@ res = qk.functionalities.verify(
 res = qk.functionalities.verify(
     "circuit.qasm",
     basis="pauli",
-    precons={0: "Z"},        # qubit 0 starts with the subspace defined by Z
-    postcons={0: "X"},       # qubit 0 ends in with the subspace defined by X
+    precons={0: "Z"},  # qubit 0 starts with the subspace defined by Z
+    postcons={0: "X"},  # qubit 0 ends in with the subspace defined by X
 )
 # Returns "True", "False", "TIMEOUT", or "MEMOUT"
 ```
@@ -141,9 +147,9 @@ Decide whether two circuits implement the same unitary.
 res = qk.functionalities.eq(
     "circuit1.qasm",
     "circuit2.qasm",
-    basis="comp",     # "comp" → use check="cyclic"
-    check="cyclic",   # "pauli" → use check="linear"
-    epsilon=0,        # 0 for exact equivalence
+    basis="comp",  # "comp" → use check="cyclic"
+    check="cyclic",  # "pauli" → use check="linear"
+    epsilon=0,  # 0 for exact equivalence
 )
 # Returns True, False, "TIMEOUT", or "MEMOUT"
 ```
@@ -154,15 +160,16 @@ Find the shortest circuit implementing a target unitary from a given gate set. R
 
 ```python
 import os
+
 os.makedirs("tmp", exist_ok=True)
 
 outcome, weight, qasm_str, layers = qk.functionalities.syn(
     "target.qasm",
     gate_set={"h", "cx", "s"},  # supported: "h", "cx", "s", "t", "cz", "csqrtx"
-    basis="pauli",               # synthesis works in Pauli basis only
-    fid=1.0,                     # target fidelity: 1.0 for exact synthesis
-    files_root="tmp",            # directory for intermediate CNF files
-    cyc_lin_encoding=True,       # use cyclic+linear encoding (recommended)
+    basis="pauli",  # synthesis works in Pauli basis only
+    fid=1.0,  # target fidelity: 1.0 for exact synthesis
+    files_root="tmp",  # directory for intermediate CNF files
+    cyc_lin_encoding=True,  # use cyclic+linear encoding (recommended)
 )
 # outcome : "FOUND" | "TIMEOUT" | "CRASH" | "ERROR#"
 # weight  : achieved fidelity (1.0 when FOUND)
@@ -252,32 +259,41 @@ Verifies `qk.functionalities.verify()` with both computational and Pauli basis p
 
 ```python
 # X flips the qubit
-qk.functionalities.verify("x.qasm", basis="comp",
-    precons={0: 0}, postcons={0: 1})   # → True
+qk.functionalities.verify(
+    "x.qasm", basis="comp", precons={0: 0}, postcons={0: 1}
+)  # → True
 
 # Toffoli fires only when both controls are set
-qk.functionalities.verify("toffoli.qasm", basis="comp",
-    precons={0: 1, 1: 1, 2: 0}, postcons={0: 1, 1: 1, 2: 1})  # → True
+qk.functionalities.verify(
+    "toffoli.qasm",
+    basis="comp",
+    precons={0: 1, 1: 1, 2: 0},
+    postcons={0: 1, 1: 1, 2: 1},
+)  # → True
 ```
 
 **Pauli basis** — stabilizer strings `{qubit: "Z"|"X"|"Y"|"I"}`:
 
 ```python
 # H swaps Z and X stabilizers: |0⟩ → |+⟩
-qk.functionalities.verify("h.qasm", basis="pauli",
-    precons={0: "Z"}, postcons={0: "X"})   # → True
+qk.functionalities.verify(
+    "h.qasm", basis="pauli", precons={0: "Z"}, postcons={0: "X"}
+)  # → True
 
 # S maps X-stabilizer to Y: |+⟩ → |i+⟩
-qk.functionalities.verify("s.qasm", basis="pauli",
-    precons={0: "X"}, postcons={0: "Y"})   # → True
+qk.functionalities.verify(
+    "s.qasm", basis="pauli", precons={0: "X"}, postcons={0: "Y"}
+)  # → True
 
 # CNOT: control in |0⟩ leaves target X-stab unchanged
-qk.functionalities.verify("cx.qasm", basis="pauli",
-    precons={0: "Z", 1: "X"}, postcons={0: "Z", 1: "X"})  # → True
+qk.functionalities.verify(
+    "cx.qasm", basis="pauli", precons={0: "Z", 1: "X"}, postcons={0: "Z", 1: "X"}
+)  # → True
 
 # CNOT entangles: q[0] alone is no longer X-stabilized after CX
-qk.functionalities.verify("cx.qasm", basis="pauli",
-    precons={0: "Z", 1: "X"}, postcons={0: "X", 1: "I"})  # → False
+qk.functionalities.verify(
+    "cx.qasm", basis="pauli", precons={0: "Z", 1: "X"}, postcons={0: "X", 1: "I"}
+)  # → False
 ```
 
 ### 3 · Equivalence Checking (`TestEquivalenceChecking`)
@@ -368,28 +384,28 @@ Example output:
 
 ```python
 # ── Simulation ──────────────────────────────────────────────
-SIM_FILE        = fixture("multi_qubit", "bell.qasm")
-SIM_BASIS       = "comp"          # "comp" or "pauli"
-SIM_MEASUREMENT = "allzero"       # "allzero", "firstzero", "{0:0,1:0}"
+SIM_FILE = fixture("multi_qubit", "bell.qasm")
+SIM_BASIS = "comp"  # "comp" or "pauli"
+SIM_MEASUREMENT = "allzero"  # "allzero", "firstzero", "{0:0,1:0}"
 
 
 # ── Verification ────────────────────────────────────────────
-VER_FILE     = fixture("verify", "v01_x_flip.qasm")
-VER_BASIS    = "pauli"
-VER_PRECONS  = {0: "Z"}           # comp: {0: 0}   pauli: {0: "Z"}
+VER_FILE = fixture("verify", "v01_x_flip.qasm")
+VER_BASIS = "pauli"
+VER_PRECONS = {0: "Z"}  # comp: {0: 0}   pauli: {0: "Z"}
 VER_POSTCONS = {0: "X"}
 
 # ── Equivalence ─────────────────────────────────────────────
-EQ_FILE1  = fixture("equiv_pairs", "eq1_hh.qasm")
-EQ_FILE2  = fixture("equiv_pairs", "eq1_identity.qasm")
-EQ_BASIS  = "comp"                # pair with EQ_CHECK = "cyclic"
-EQ_CHECK  = "cyclic"              # "cyclic" (comp) or "linear" (pauli)
+EQ_FILE1 = fixture("equiv_pairs", "eq1_hh.qasm")
+EQ_FILE2 = fixture("equiv_pairs", "eq1_identity.qasm")
+EQ_BASIS = "comp"  # pair with EQ_CHECK = "cyclic"
+EQ_CHECK = "cyclic"  # "cyclic" (comp) or "linear" (pauli)
 
 # ── Synthesis ───────────────────────────────────────────────
-SYN_FILE        = fixture("synthesis", "syn01_h_target.qasm")
-SYN_GATE_SET    = {"h", "cx", "s"}
-SYN_FID         = 1.0             # 1.0 for exact synthesis
-SYN_FILES_ROOT  = "tmp"           # directory for intermediate CNF files
+SYN_FILE = fixture("synthesis", "syn01_h_target.qasm")
+SYN_GATE_SET = {"h", "cx", "s"}
+SYN_FID = 1.0  # 1.0 for exact synthesis
+SYN_FILES_ROOT = "tmp"  # directory for intermediate CNF files
 SYN_CYC_LIN_ENC = True
 ```
 

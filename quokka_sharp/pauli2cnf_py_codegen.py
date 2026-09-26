@@ -1,25 +1,25 @@
 from sympy.logic.boolalg import *
 from sympy.logic import simplify_logic
-from sympy import symbols 
+from sympy import symbols
 
-r    = symbols('r')
-R    = symbols('R')
+r = symbols("r")
+R = symbols("R")
 
-u    = symbols('u')
-U    = symbols('U')
-d    = symbols('d')
-D    = symbols('D')
+u = symbols("u")
+U = symbols("U")
+d = symbols("d")
+D = symbols("D")
 
-u1    = symbols('u1')
-u2    = symbols('u2')
+u1 = symbols("u1")
+u2 = symbols("u2")
 
 
 c = 0
 t = 1
 k = 2
 
-x = [0,0,0]
-z = [0,0,0]
+x = [0, 0, 0]
+z = [0, 0, 0]
 x[k] = symbols("x[k]")
 x[c] = symbols("x[c]")
 x[t] = symbols("x[t]")
@@ -27,43 +27,48 @@ z[k] = symbols("z[k]")
 z[c] = symbols("z[c]")
 z[t] = symbols("z[t]")
 
-X    = symbols('X')
-Z    = symbols('Z')
+X = symbols("X")
+Z = symbols("Z")
+
 
 def strstrip(item1):
-    return item1.lstrip(' ()~')
+    return item1.lstrip(" ()~")
+
 
 def to_py(func, prefix="", simplify=True, force=True):
-    print(prefix+"        # "+str(func))
+    print(prefix + "        # " + str(func))
     s = str(to_cnf(func, simplify=simplify, force=force))
     for a in s.split("&"):
-        print(prefix+"        cnf.add_clause([", end="")
+        print(prefix + "        cnf.add_clause([", end="")
         l = a.split("|")
         l.sort(key=strstrip)
         for x in l:
-            b = x.strip(' ()')
-            if b.startswith('~'):
-                b = b.replace('~', '-')
+            b = x.strip(" ()")
+            if b.startswith("~"):
+                b = b.replace("~", "-")
             else:
-                b = " "+ b
+                b = " " + b
             print(b, end="")
             if x != l[-1]:
                 print(", ", end="")
         print("])")
 
-def add_sign(func, prefix = ""):
-    print(prefix+f"        # adding sign if {func}")
-    print(prefix+"        R = cnf.add_var()")
-    print(prefix+"        cnf.vars.RVar.append(R)")
-    print(prefix+"        cnf.add_weight(R, -1, 1)")
-    to_py(	                  Equivalent(R, func), prefix)
 
-def add_sqrt_half(func, prefix = ""):
-    print(prefix+f"        # adding sqrt_half if {func}")
-    print(prefix+"        U = cnf.add_var()")
-    print(prefix+"        cnf.vars.UVar.append(U)")
-    print(prefix+"        cnf.add_weight(U, (Decimal(1) / Decimal(2)).sqrt(), 1)")
-    to_py(	                  Equivalent(U, func), prefix)
+def add_sign(func, prefix=""):
+    print(prefix + f"        # adding sign if {func}")
+    print(prefix + "        R = cnf.add_var()")
+    print(prefix + "        cnf.vars.RVar.append(R)")
+    print(prefix + "        cnf.add_weight(R, -1, 1)")
+    to_py(Equivalent(R, func), prefix)
+
+
+def add_sqrt_half(func, prefix=""):
+    print(prefix + f"        # adding sqrt_half if {func}")
+    print(prefix + "        U = cnf.add_var()")
+    print(prefix + "        cnf.vars.UVar.append(U)")
+    print(prefix + "        cnf.add_weight(U, (Decimal(1) / Decimal(2)).sqrt(), 1)")
+    to_py(Equivalent(U, func), prefix)
+
 
 def main():
 
@@ -73,14 +78,14 @@ def main():
     print("getcontext().prec = 32")
     print()
     print("class pauli2cnf:")
-    print('''    \"\"\"
+    print("""    \"\"\"
     This class contains the functions to convert a quantum circuit to CNF clauses in the Pauli basis.
-    \"\"\"''')
+    \"\"\"""")
     print()
 
     # Initialization:
     print("    def init(cnf):")
-    print("        return")     
+    print("        return")
     print()
 
     # H:
@@ -120,7 +125,7 @@ def main():
     print()
     print("        Z = cnf.add_var()")
     print("        cnf.vars.ZVar.append(Z)")
-    to_py(	       Equivalent(Z, x[k] ^ z[k]))
+    to_py(Equivalent(Z, x[k] ^ z[k]))
     print()
     add_sign(x[k] & z[k])
     print()
@@ -134,22 +139,22 @@ def main():
     print()
     print("        Z = cnf.add_var()")
     print("        cnf.vars.ZVar.append(Z)")
-    to_py(	       Equivalent(Z, x[k] ^ z[k]))
+    to_py(Equivalent(Z, x[k] ^ z[k]))
     print()
     add_sign(x[k] & ~z[k])
-    print()    
+    print()
     print("        cnf.vars.z[k] = Z")
     print()
-    
+
     # T:
     print("    def T2CNF(cnf, k):")
     print("        x = cnf.vars.x")
     print("        z = cnf.vars.z")
-    print()   
+    print()
     print("        Z = cnf.add_var()")
     print("        cnf.vars.ZVar.append(Z)")
-    to_py(	       x[k] | Equivalent(Z, z[k]))
-    print()   
+    to_py(x[k] | Equivalent(Z, z[k]))
+    print()
     add_sqrt_half(x[k])
     print()
     add_sign(x[k] & z[k] & ~Z)
@@ -162,15 +167,15 @@ def main():
     print("        x = cnf.vars.x")
     print("        z = cnf.vars.z")
     print()
-    print("        Z = cnf.add_var()")  
+    print("        Z = cnf.add_var()")
     print("        cnf.vars.ZVar.append(Z)")
-    to_py(	       x[k] | Equivalent(Z, z[k]))
-    print()   
+    to_py(x[k] | Equivalent(Z, z[k]))
+    print()
     add_sqrt_half(x[k])
     print()
     add_sign(x[k] & ~z[k] & Z)
     print()
-    print("        cnf.vars.z[k] = Z")  
+    print("        cnf.vars.z[k] = Z")
     print()
 
     # CNOT
@@ -180,11 +185,11 @@ def main():
     print()
     print("        X = cnf.add_var()")
     print("        cnf.vars.XVar.append(X)")
-    to_py(	       Equivalent(X, x[t] ^ x[c]))
+    to_py(Equivalent(X, x[t] ^ x[c]))
     print()
     print("        Z = cnf.add_var()")
     print("        cnf.vars.ZVar.append(Z)")
-    to_py(	       Equivalent(Z, z[t] ^ z[c]))
+    to_py(Equivalent(Z, z[t] ^ z[c]))
     print()
     add_sign(x[c] & z[t] & (~x[t] ^ z[c]))
     print()
@@ -192,20 +197,20 @@ def main():
     print("        cnf.vars.z[c] = Z")
     print()
 
-    #CZ
-    Zc   = symbols('Zc')
-    Zt   = symbols('Zt')
+    # CZ
+    Zc = symbols("Zc")
+    Zt = symbols("Zt")
     print("    def CZ2CNF(cnf, c, t):")
     print("        x = cnf.vars.x")
     print("        z = cnf.vars.z")
     print()
     print("        Zc = cnf.add_var()")
     print("        cnf.vars.ZVar.append(Zc)")
-    to_py(	       Equivalent(Zc, z[c] ^ x[t]))
+    to_py(Equivalent(Zc, z[c] ^ x[t]))
     print()
     print("        Zt = cnf.add_var()")
     print("        cnf.vars.ZVar.append(Zt)")
-    to_py(	       Equivalent(Zt, z[t] ^ x[c]))
+    to_py(Equivalent(Zt, z[t] ^ x[c]))
     print()
     add_sign(x[t] & x[c] & (z[t] ^ z[c]))
     print()
@@ -213,14 +218,14 @@ def main():
     print("        cnf.vars.z[t] = Zt")
     print()
 
-    #CY
+    # CY
     print("    def CY2CNF(cnf, c, t):")
     print("        pauli2cnf.Sdg2CNF(cnf, t)")
     print("        pauli2cnf.CNOT2CNF(cnf, c, t)")
     print("        pauli2cnf.S2CNF(cnf, t)")
     print()
 
-    #SWAP
+    # SWAP
     print("    def SWAP2CNF(cnf, c, t):")
     print("        x = cnf.vars.x")
     print("        z = cnf.vars.z")
@@ -229,7 +234,7 @@ def main():
     print("        z[c], z[t] = z[t], z[c]")
     print()
 
-    #ISWAP
+    # ISWAP
     print("    def ISWAP2CNF(cnf, c, t):")
     print("        pauli2cnf.SWAP2CNF(cnf, c, t)")
     print("        pauli2cnf.CZ2CNF(cnf, c, t)")
@@ -237,83 +242,91 @@ def main():
     print("        pauli2cnf.S2CNF(cnf, t)")
     print()
 
-    #CS
+    # CS
     print("    def CS2CNF(cnf, c, t):")
     print("        x = cnf.vars.x")
     print("        z = cnf.vars.z")
     print()
     print("        Zc = cnf.add_var()")
     print("        cnf.vars.ZVar.append(Zc)")
-    to_py(	       x[c] | x[t] | Equivalent(Zc, z[c]))
+    to_py(x[c] | x[t] | Equivalent(Zc, z[c]))
     print()
     print("        Zt = cnf.add_var()")
     print("        cnf.vars.ZVar.append(Zt)")
-    to_py(	       x[c] | x[t] | Equivalent(Zt, z[t]))
+    to_py(x[c] | x[t] | Equivalent(Zt, z[t]))
     print()
-    add_sign( (x[c] & z[c] & ~Zc) ^ (x[t] & z[t] & ~Zt) ^ ((~x[c] | ~x[t]) & (z[t] ^ Zt) & (z[c] ^ Zc) ))
+    add_sign(
+        (x[c] & z[c] & ~Zc)
+        ^ (x[t] & z[t] & ~Zt)
+        ^ ((~x[c] | ~x[t]) & (z[t] ^ Zt) & (z[c] ^ Zc))
+    )
     print()
     print("        u = cnf.add_var()")
     print("        cnf.vars.UVar.append(u)")
     print("        cnf.add_weight(u, Decimal(1) / Decimal(2), 1)")
-    to_py(	       Equivalent(u, x[c] | x[t]))
+    to_py(Equivalent(u, x[c] | x[t]))
     print()
     print("        cnf.vars.z[c] = Zc")
     print("        cnf.vars.z[t] = Zt")
     print()
 
-    #CSdg
+    # CSdg
     print("    def CSdg2CNF(cnf, c, t):")
     print("        x = cnf.vars.x")
     print("        z = cnf.vars.z")
     print()
     print("        Zc = cnf.add_var()")
     print("        cnf.vars.ZVar.append(Zc)")
-    to_py(	       x[c] | x[t] | Equivalent(Zc, z[c]))
+    to_py(x[c] | x[t] | Equivalent(Zc, z[c]))
     print()
     print("        Zt = cnf.add_var()")
     print("        cnf.vars.ZVar.append(Zt)")
-    to_py(	       x[c] | x[t] | Equivalent(Zt, z[t]))
+    to_py(x[c] | x[t] | Equivalent(Zt, z[t]))
     print()
-    add_sign( (x[c] & ~z[c] & Zc) ^ (x[t] & ~z[t] & Zt) ^ ((~x[c] | ~x[t]) & (z[t] ^ Zt) & (z[c] ^ Zc) ))
+    add_sign(
+        (x[c] & ~z[c] & Zc)
+        ^ (x[t] & ~z[t] & Zt)
+        ^ ((~x[c] | ~x[t]) & (z[t] ^ Zt) & (z[c] ^ Zc))
+    )
     print()
     print("        u = cnf.add_var()")
     print("        cnf.vars.UVar.append(u)")
     print("        cnf.add_weight(u, Decimal(1) / Decimal(2), 1)")
-    to_py(	       Equivalent(u, x[c] | x[t]))
+    to_py(Equivalent(u, x[c] | x[t]))
     print()
     print("        cnf.vars.z[c] = Zc")
     print("        cnf.vars.z[t] = Zt")
     print()
 
     # C√X
-    Xt   = symbols('Xt')
+    Xt = symbols("Xt")
     print("    def CSqrtX2CNF(cnf, c, t):")
     print("        x = cnf.vars.x")
     print("        z = cnf.vars.z")
     print()
     print("        Zc = cnf.add_var()")
     print("        cnf.vars.ZVar.append(Zc)")
-    to_py(	       x[c] | z[t] | Equivalent(Zc, z[c]))
+    to_py(x[c] | z[t] | Equivalent(Zc, z[c]))
     print()
     print("        Xt = cnf.add_var()")
     print("        cnf.vars.XVar.append(Xt)")
-    to_py(	       x[c] | z[t] | Equivalent(Xt, x[t]))
+    to_py(x[c] | z[t] | Equivalent(Xt, x[t]))
     print()
-    add_sign(   
-                (x[c] & x[t] & Xt & z[c] & ~Zc) | 
-                (Xt & z[c] & Zc & z[t] & ~x[t]) | 
-                (x[c] & Xt & Zc & ~x[t] & ~z[c]) | 
-                (x[t] & z[c] & z[t] & ~Xt & ~Zc) | 
-                (x[c] & z[c] & ~x[t] & ~Xt & ~Zc) | 
-                (Xt & z[t] & ~x[t] & ~z[c] & ~Zc) | 
-                (x[c] & x[t] & Zc & ~Xt & ~z[c] & ~z[t]) | 
-                (x[t] & Zc & z[t] & ~x[c] & ~Xt & ~z[c])
-            )
+    add_sign(
+        (x[c] & x[t] & Xt & z[c] & ~Zc)
+        | (Xt & z[c] & Zc & z[t] & ~x[t])
+        | (x[c] & Xt & Zc & ~x[t] & ~z[c])
+        | (x[t] & z[c] & z[t] & ~Xt & ~Zc)
+        | (x[c] & z[c] & ~x[t] & ~Xt & ~Zc)
+        | (Xt & z[t] & ~x[t] & ~z[c] & ~Zc)
+        | (x[c] & x[t] & Zc & ~Xt & ~z[c] & ~z[t])
+        | (x[t] & Zc & z[t] & ~x[c] & ~Xt & ~z[c])
+    )
     print()
     print("        u = cnf.add_var()")
     print("        cnf.vars.UVar.append(u)")
     print("        cnf.add_weight(u, Decimal(1) / Decimal(2), 1)")
-    to_py(	       Equivalent(u, x[c] | z[t]))
+    to_py(Equivalent(u, x[c] | z[t]))
     print()
     print("        cnf.vars.z[c] = Zc")
     print("        cnf.vars.x[t] = Xt")
@@ -326,33 +339,33 @@ def main():
     print()
     print("        Zc = cnf.add_var()")
     print("        cnf.vars.ZVar.append(Zc)")
-    to_py(	       x[c] | z[t] | Equivalent(Zc, z[c]))
+    to_py(x[c] | z[t] | Equivalent(Zc, z[c]))
     print()
     print("        Xt = cnf.add_var()")
     print("        cnf.vars.XVar.append(Xt)")
-    to_py(	       x[c] | z[t] | Equivalent(Xt, x[t]))
+    to_py(x[c] | z[t] | Equivalent(Xt, x[t]))
     print()
-    add_sign(   
-                (x[c] & x[t] & Xt & Zc & ~z[c]) | 
-                (x[t] & z[c] & Zc & z[t] & ~Xt) | 
-                (x[c] & x[t] & z[c] & ~Xt & ~Zc) | 
-                (Xt & Zc & z[t] & ~x[t] & ~z[c]) | 
-                (x[c] & Zc & ~x[t] & ~Xt & ~z[c]) | 
-                (x[t] & z[t] & ~Xt & ~z[c] & ~Zc) | 
-                (x[c] & Xt & z[c] & ~x[t] & ~Zc & ~z[t]) | 
-                (Xt & z[c] & z[t] & ~x[c] & ~x[t] & ~Zc)
-            )
+    add_sign(
+        (x[c] & x[t] & Xt & Zc & ~z[c])
+        | (x[t] & z[c] & Zc & z[t] & ~Xt)
+        | (x[c] & x[t] & z[c] & ~Xt & ~Zc)
+        | (Xt & Zc & z[t] & ~x[t] & ~z[c])
+        | (x[c] & Zc & ~x[t] & ~Xt & ~z[c])
+        | (x[t] & z[t] & ~Xt & ~z[c] & ~Zc)
+        | (x[c] & Xt & z[c] & ~x[t] & ~Zc & ~z[t])
+        | (Xt & z[c] & z[t] & ~x[c] & ~x[t] & ~Zc)
+    )
     print()
     print("        u = cnf.add_var()")
     print("        cnf.vars.UVar.append(u)")
     print("        cnf.add_weight(u, Decimal(1) / Decimal(2), 1)")
-    to_py(	       Equivalent(u, x[c] | z[t]))
+    to_py(Equivalent(u, x[c] | z[t]))
     print()
     print("        cnf.vars.z[c] = Zc")
     print("        cnf.vars.x[t] = Xt")
     print()
 
-    #CCX
+    # CCX
     print("    def CCX2CNF(cnf, k, c, t):")
     print("        pauli2cnf.CSqrtX2CNF(cnf, k, t)")
     print("        pauli2cnf.CSqrtX2CNF(cnf, c, t)")
@@ -361,24 +374,24 @@ def main():
     print("        pauli2cnf.CNOT2CNF(cnf, k, c)")
     print()
 
-    #RX
+    # RX
     print("    def RX2CNF(cnf, k, theta):")
     print("        x = cnf.vars.x")
     print("        z = cnf.vars.z")
     print()
     print("        X = cnf.add_var()")
     print("        cnf.vars.XVar.append(X)")
-    to_py(	       z[k] | Equivalent(X, x[k]))
-    print()   
+    to_py(z[k] | Equivalent(X, x[k]))
+    print()
     print("        u1 = cnf.add_var()")
     print("        cnf.vars.UVar.append(u1)")
     print("        cnf.add_weight(u1, Decimal(math.cos(theta)), 1)")
-    to_py(	       Equivalent(u1, z[k] & ((x[k] & X) | (~x[k] & ~X))))
-    print()   
+    to_py(Equivalent(u1, z[k] & ((x[k] & X) | (~x[k] & ~X))))
+    print()
     print("        u2 = cnf.add_var()")
     print("        cnf.vars.UVar.append(u2)")
     print("        cnf.add_weight(u2, Decimal(math.sin(theta)), 1)")
-    to_py(	       Equivalent(u2, z[k] & ((~x[k] & X) | (x[k] & ~X))))
+    to_py(Equivalent(u2, z[k] & ((~x[k] & X) | (x[k] & ~X))))
     print()
     add_sign(z[k] & ~x[k] & X)
     print()
@@ -393,17 +406,17 @@ def main():
     print()
     print("        Z = cnf.add_var()")
     print("        cnf.vars.ZVar.append(Z)")
-    to_py(	       x[k] | Equivalent(Z, z[k]))
+    to_py(x[k] | Equivalent(Z, z[k]))
     print()
     print("        u1 = cnf.add_var()")
     print("        cnf.vars.UVar.append(u1)")
     print("        cnf.add_weight(u1, Decimal(math.cos(theta)), 1)")
-    to_py(	       Equivalent(u1, x[k] & (((z[k] & Z)) | (~z[k] & ~Z))))
-    print()   
+    to_py(Equivalent(u1, x[k] & ((z[k] & Z) | (~z[k] & ~Z))))
+    print()
     print("        u2 = cnf.add_var()")
     print("        cnf.vars.UVar.append(u2)")
     print("        cnf.add_weight(u2, Decimal(math.sin(theta)), 1)")
-    to_py(	       Equivalent(u2, x[k] & (((~z[k] & Z)) | (z[k] & ~Z))))
+    to_py(Equivalent(u2, x[k] & ((~z[k] & Z) | (z[k] & ~Z))))
     print()
     add_sign(x[k] & z[k] & ~Z)
     print()
@@ -416,8 +429,9 @@ def main():
     # synthesis layer
     add_synthesis()
 
+
 def add_composition():
-    print('''
+    print("""
     def Composition(cnf, composition_dictionary):
         x, z = zip(*[(cnf.add_var(), cnf.add_var()) for _ in range(cnf.n)])
         weights = []
@@ -480,9 +494,9 @@ def add_composition():
         #     cnf.add_clause([w])
           
         return x,z,comp
-    ''')
+    """)
 
-    print('''
+    print("""
     def Composition2CNF(cnf, composition_dictionary):
         assert composition_dictionary["qubits"] == cnf.n
         if cnf.n > 1:
@@ -499,54 +513,63 @@ def add_composition():
         for k in range(cnf.n):
             X = Xs[k]
             Z = Zs[k]
-    ''')
-    lx = symbols('lx[k]')
-    lz = symbols('lz[k]')
-    rx = symbols('rx[k]')
-    rz = symbols('rz[k]')
+    """)
+    lx = symbols("lx[k]")
+    lz = symbols("lz[k]")
+    rx = symbols("rx[k]")
+    rz = symbols("rz[k]")
 
-    to_py(Equivalent(X, lx^x[k]^rx), prefix="    ")
-    to_py(Equivalent(Z, lz^z[k]^rz), prefix="    ")
+    to_py(Equivalent(X, lx ^ x[k] ^ rx), prefix="    ")
+    to_py(Equivalent(Z, lz ^ z[k] ^ rz), prefix="    ")
 
-    add_sign(And(Or((  lx & ~x[k] &  rx),
-                    ( ~lx &  x[k] & ~rx),
-                    (  lz & ~z[k] &  rz),
-                    ( ~lz &  z[k] & ~rz)),
-                 Or(lx, lz),
-                 Or(x[k], z[k])), prefix="    ")
-    
-    to_py(Or(And(Equivalent(lx,x[k]),
-                 Equivalent(lz,z[k])),
-             And(Equivalent(rx,x[k]),
-                 Equivalent(rz,z[k])),
-             And(Equivalent(lx,rx),
-                 Equivalent(lz,rz))    ), prefix="    ")
-    
-    rc = symbols('rc')
-    lc = symbols('lc')
+    add_sign(
+        And(
+            Or(
+                (lx & ~x[k] & rx),
+                (~lx & x[k] & ~rx),
+                (lz & ~z[k] & rz),
+                (~lz & z[k] & ~rz),
+            ),
+            Or(lx, lz),
+            Or(x[k], z[k]),
+        ),
+        prefix="    ",
+    )
+
+    to_py(
+        Or(
+            And(Equivalent(lx, x[k]), Equivalent(lz, z[k])),
+            And(Equivalent(rx, x[k]), Equivalent(rz, z[k])),
+            And(Equivalent(lx, rx), Equivalent(lz, rz)),
+        ),
+        prefix="    ",
+    )
+
+    rc = symbols("rc")
+    lc = symbols("lc")
     to_py(Equivalent(rc, lc), prefix="")
 
-    print(f'''
+    print(f"""
         cnf.vars.x = Xs
         cnf.vars.z = Zs
-    ''')
+    """)
 
 
 # =============================[ Synthesis ]============================== #
 def add_synthesis():
     ### dynamic single bit gate (selectors used on the synthesis side) ###
-    idg   = symbols('idg[k]')
-    hg    = symbols('hg[k]')
-    sg    = symbols('sg[k]')
-    sdg   = symbols('sdg[k]')
-    tg    = symbols('tg[k]')
-    tdg   = symbols('tdg[k]')
+    idg = symbols("idg[k]")
+    hg = symbols("hg[k]")
+    sg = symbols("sg[k]")
+    sdg = symbols("sdg[k]")
+    tg = symbols("tg[k]")
+    tdg = symbols("tdg[k]")
 
     # per-qubit next state and weights/signs used in the emitted code
-    Xk = symbols('X[k]')
-    Zk = symbols('Z[k]')
-    Rk = symbols('R[k]')
-    Uk = symbols('U[k]')
+    Xk = symbols("X[k]")
+    Zk = symbols("Z[k]")
+    Rk = symbols("R[k]")
+    Uk = symbols("U[k]")
 
     # Single-qubit property formulas (left side is the selector)
     # Identity
@@ -562,29 +585,29 @@ def add_synthesis():
     H_u = hg >> Equivalent(Uk, False)
 
     # S / Sdg
-    S_r    = sg  >> Equivalent(Rk, x[k] &  z[k])
-    Sdg_r  = sdg >> Equivalent(Rk, x[k] & ~z[k])
-    S_x    = (sg | sdg) >> Equivalent(Xk, x[k])
-    S_z    = (sg | sdg) >> Equivalent(Zk, x[k] ^ z[k])
-    S_u    = (sg | sdg) >> Equivalent(Uk, False)
+    S_r = sg >> Equivalent(Rk, x[k] & z[k])
+    Sdg_r = sdg >> Equivalent(Rk, x[k] & ~z[k])
+    S_x = (sg | sdg) >> Equivalent(Xk, x[k])
+    S_z = (sg | sdg) >> Equivalent(Zk, x[k] ^ z[k])
+    S_u = (sg | sdg) >> Equivalent(Uk, False)
 
     # T / Tdg
-    T_r    = tg  >> Equivalent(Rk, x[k] &  z[k] & ~Zk)
-    Tdg_r  = tdg >> Equivalent(Rk, x[k] & ~z[k] &  Zk)
-    T_x    = (tg | tdg) >> Equivalent(Xk, x[k])
-    T_z    = (tg | tdg) >> Equivalent(Zk, z[k]) | x[k]
-    T_u    = (tg | tdg) >> Equivalent(Uk, x[k])
+    T_r = tg >> Equivalent(Rk, x[k] & z[k] & ~Zk)
+    Tdg_r = tdg >> Equivalent(Rk, x[k] & ~z[k] & Zk)
+    T_x = (tg | tdg) >> Equivalent(Xk, x[k])
+    T_z = (tg | tdg) >> Equivalent(Zk, z[k]) | x[k]
+    T_u = (tg | tdg) >> Equivalent(Uk, x[k])
 
     ### dynamic two bit gate (selectors used on the synthesis side) ###
-    cxgate_ct = symbols('cxgate[c][t]')
-    Xc = symbols('X[c]')
-    Xt = symbols('X[t]')
-    Zc = symbols('Z[c]')
-    Zt = symbols('Z[t]')
-    Rc = symbols('R[c]')
-    Rt = symbols('R[t]')
-    Uc = symbols('U[c]')
-    Ut = symbols('U[t]')
+    cxgate_ct = symbols("cxgate[c][t]")
+    Xc = symbols("X[c]")
+    Xt = symbols("X[t]")
+    Zc = symbols("Z[c]")
+    Zt = symbols("Z[t]")
+    Rc = symbols("R[c]")
+    Rt = symbols("R[t]")
+    Uc = symbols("U[c]")
+    Ut = symbols("U[t]")
 
     # CX properties
     CX_xc = cxgate_ct >> Equivalent(Xc, x[c])
@@ -597,7 +620,7 @@ def add_synthesis():
     CX_ut = cxgate_ct >> Equivalent(Ut, False)
 
     # CZ properties
-    czgate_ct = symbols('czgate[c][t]')
+    czgate_ct = symbols("czgate[c][t]")
     CZ_xc = czgate_ct >> Equivalent(Xc, x[c])
     CZ_xt = czgate_ct >> Equivalent(Xt, x[t])
     CZ_zc = czgate_ct >> Equivalent(Zc, z[c] ^ x[t])
@@ -608,37 +631,39 @@ def add_synthesis():
     CZ_ut = czgate_ct >> Equivalent(Ut, False)
 
     # CSqrtX / CSqrtXdg properties
-    csqrtxgate_ct   = symbols('csqrtxgate[c][t]')
-    csqrtxdggate_ct = symbols('csqrtxdggate[c][t]')
+    csqrtxgate_ct = symbols("csqrtxgate[c][t]")
+    csqrtxdggate_ct = symbols("csqrtxdggate[c][t]")
     CSqrtX_xc = (csqrtxgate_ct | csqrtxdggate_ct) >> Equivalent(Xc, x[c])
     CSqrtX_xt = (csqrtxgate_ct | csqrtxdggate_ct) >> Equivalent(Xt, x[t]) | x[c] | z[t]
     CSqrtX_zc = (csqrtxgate_ct | csqrtxdggate_ct) >> Equivalent(Zc, z[c]) | x[c] | z[t]
     CSqrtX_zt = (csqrtxgate_ct | csqrtxdggate_ct) >> Equivalent(Zt, z[t])
-    CSqrtX_rc = csqrtxgate_ct >> Equivalent(Rc,
-                        (x[c] & x[t] & Xt & z[c] & ~Zc) |
-                        (Xt & z[c] & Zc & z[t] & ~x[t]) |
-                        (x[c] & Xt & Zc & ~x[t] & ~z[c]) |
-                        (x[t] & z[c] & z[t] & ~Xt & ~Zc) |
-                        (x[c] & z[c] & ~x[t] & ~Xt & ~Zc) |
-                        (Xt & z[t] & ~x[t] & ~z[c] & ~Zc) |
-                        (x[c] & x[t] & Zc & ~Xt & ~z[c] & ~z[t]) |
-                        (x[t] & Zc & z[t] & ~x[c] & ~Xt & ~z[c])
-                    )
-    CSqrtXdg_rc = csqrtxdggate_ct >> Equivalent(Rc,
-                        (x[c] & x[t] & Xt & Zc & ~z[c]) |
-                        (x[t] & z[c] & Zc & z[t] & ~Xt) |
-                        (x[c] & x[t] & z[c] & ~Xt & ~Zc) |
-                        (Xt & Zc & z[t] & ~x[t] & ~z[c]) |
-                        (x[c] & Zc & ~x[t] & ~Xt & ~z[c]) |
-                        (x[t] & z[t] & ~Xt & ~z[c] & ~Zc) |
-                        (x[c] & Xt & z[c] & ~x[t] & ~Zc & ~z[t]) |
-                        (Xt & z[c] & z[t] & ~x[c] & ~x[t] & ~Zc)
-                    )
+    CSqrtX_rc = csqrtxgate_ct >> Equivalent(
+        Rc,
+        (x[c] & x[t] & Xt & z[c] & ~Zc)
+        | (Xt & z[c] & Zc & z[t] & ~x[t])
+        | (x[c] & Xt & Zc & ~x[t] & ~z[c])
+        | (x[t] & z[c] & z[t] & ~Xt & ~Zc)
+        | (x[c] & z[c] & ~x[t] & ~Xt & ~Zc)
+        | (Xt & z[t] & ~x[t] & ~z[c] & ~Zc)
+        | (x[c] & x[t] & Zc & ~Xt & ~z[c] & ~z[t])
+        | (x[t] & Zc & z[t] & ~x[c] & ~Xt & ~z[c]),
+    )
+    CSqrtXdg_rc = csqrtxdggate_ct >> Equivalent(
+        Rc,
+        (x[c] & x[t] & Xt & Zc & ~z[c])
+        | (x[t] & z[c] & Zc & z[t] & ~Xt)
+        | (x[c] & x[t] & z[c] & ~Xt & ~Zc)
+        | (Xt & Zc & z[t] & ~x[t] & ~z[c])
+        | (x[c] & Zc & ~x[t] & ~Xt & ~z[c])
+        | (x[t] & z[t] & ~Xt & ~z[c] & ~Zc)
+        | (x[c] & Xt & z[c] & ~x[t] & ~Zc & ~z[t])
+        | (Xt & z[c] & z[t] & ~x[c] & ~x[t] & ~Zc),
+    )
     CSqrtX_rt = (csqrtxgate_ct | csqrtxdggate_ct) >> Equivalent(Rt, False)
     CSqrtX_uc = (csqrtxgate_ct | csqrtxdggate_ct) >> Equivalent(Ut, False)
     CSqrtX_ut = (csqrtxgate_ct | csqrtxdggate_ct) >> Equivalent(Uc, x[c] | z[t])
 
-    print('''
+    print("""
     def AMO(cnf, var_list):
         assert None not in var_list
         # at least one:
@@ -646,7 +671,7 @@ def add_synthesis():
         # at most one:
         [cnf.add_clause([-var_list[a], -var_list[b]])
          for a in range(len(var_list)) for b in range(a+1, len(var_list))]
-    ''')
+    """)
 
     print('''
     def SynLayer2CNF(cnf, gate_set=set(), limit_gates=False, h_layer=False):
@@ -757,11 +782,11 @@ def add_synthesis():
     print()
 
     print("            if ENABLE_S and (not limit_gates or not h_layer):")
-    to_py(S_r,    prefix="        ")
-    to_py(Sdg_r,  prefix="        ")
-    to_py(S_x,    prefix="        ")
-    to_py(S_z,    prefix="        ")
-    to_py(S_u,    prefix="        ")
+    to_py(S_r, prefix="        ")
+    to_py(Sdg_r, prefix="        ")
+    to_py(S_x, prefix="        ")
+    to_py(S_z, prefix="        ")
+    to_py(S_u, prefix="        ")
     print()
 
     print("            if ENABLE_H and (not limit_gates or h_layer):")
@@ -773,13 +798,13 @@ def add_synthesis():
 
     print("            if ENABLE_T and (not limit_gates or not h_layer):")
     to_py(Tdg_r, prefix="        ")
-    to_py(T_r,   prefix="        ")
-    to_py(T_x,   prefix="        ")
-    to_py(T_z,   prefix="        ")
-    to_py(T_u,   prefix="        ")
+    to_py(T_r, prefix="        ")
+    to_py(T_x, prefix="        ")
+    to_py(T_z, prefix="        ")
+    to_py(T_u, prefix="        ")
     print()
 
-    print('''
+    print("""
             c = k
             for t in range(n):
                 if t == c:
@@ -787,7 +812,7 @@ def add_synthesis():
 
                 # CX properties
                 if ENABLE_CX and (not limit_gates or not h_layer):
-    ''')
+    """)
     to_py(CX_xc, prefix="            ")
     to_py(CX_xt, prefix="            ")
     to_py(CX_zc, prefix="            ")
@@ -797,10 +822,10 @@ def add_synthesis():
     to_py(CX_uc, prefix="            ")
     to_py(CX_ut, prefix="            ")
 
-    print('''
+    print("""
                 # CZ properties
                 if ENABLE_CZ and (not limit_gates or not h_layer):
-    ''')
+    """)
     to_py(CZ_xc, prefix="            ")
     to_py(CZ_xt, prefix="            ")
     to_py(CZ_zc, prefix="            ")
@@ -810,21 +835,21 @@ def add_synthesis():
     to_py(CZ_uc, prefix="            ")
     to_py(CZ_ut, prefix="            ")
 
-    print('''
+    print("""
                 # CSqrtX / CSqrtXdg properties
                 if ENABLE_CSQRTX and (not limit_gates or not h_layer):
-    ''')
-    to_py(CSqrtX_xc,   prefix="            ")
-    to_py(CSqrtX_xt,   prefix="            ")
-    to_py(CSqrtX_zc,   prefix="            ")
-    to_py(CSqrtX_zt,   prefix="            ")
-    to_py(CSqrtX_rc,   prefix="            ")
+    """)
+    to_py(CSqrtX_xc, prefix="            ")
+    to_py(CSqrtX_xt, prefix="            ")
+    to_py(CSqrtX_zc, prefix="            ")
+    to_py(CSqrtX_zt, prefix="            ")
+    to_py(CSqrtX_rc, prefix="            ")
     to_py(CSqrtXdg_rc, prefix="            ")
-    to_py(CSqrtX_rt,   prefix="            ")
-    to_py(CSqrtX_uc,   prefix="            ")
-    to_py(CSqrtX_ut,   prefix="            ")
+    to_py(CSqrtX_rt, prefix="            ")
+    to_py(CSqrtX_uc, prefix="            ")
+    to_py(CSqrtX_ut, prefix="            ")
 
-    print('''
+    print("""
             # Build AMO controller set
             def integer_only(lst):
                 return [v for v in lst if isinstance(v, int) and v != 0]
@@ -901,7 +926,8 @@ def add_synthesis():
 
         cnf.vars.x[:n] = X
         cnf.vars.z[:n] = Z
-    ''')
+    """)
+
 
 if __name__ == "__main__":
     main()
