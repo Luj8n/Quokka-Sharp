@@ -846,8 +846,7 @@ class TestSynthesis:
         outcome, _, qasm_str, _ = qk.functionalities.syn(
             target, basis="pauli", fid=1.0, files_root="tmp", gate_set={"h", "cx", "s"}
         )
-        if outcome != "FOUND":
-            pytest.skip(f"Synthesis did not find a solution: {outcome}")
+        assert outcome == "FOUND", f"Synthesis did not find a solution: {outcome}"
         # Write synthesised QASM to a temp file and check equivalence
         with tempfile.NamedTemporaryFile(mode="w", suffix=".qasm", delete=False) as f:
             f.write(qasm_str)
