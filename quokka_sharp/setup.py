@@ -17,6 +17,7 @@ setup(
     description=DESCRIPTION,
     long_description=LONG_DESCRIPTION,
     packages=find_packages(),
+    package_dir={"": "."},
     keywords=["python", "quantum circuits"],
     classifiers=[
         "Programming Language :: Python :: 3",
