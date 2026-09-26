@@ -103,7 +103,7 @@ def Synthesis(
     cnf: "CNF",
     cnf_file_root=tempfile.gettempdir(),
     gate_set=set(),
-    fidelity_threshold=1,
+    fidelity_threshold=1.0,
     bin_search=False,
     initial_depth=0,
     onehot_xz=False,

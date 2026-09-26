@@ -3,6 +3,7 @@ from .utils.utils import validate_basis
 
 
 class functionalities:
+    @staticmethod
     def eq(qasmfile1, qasmfile2, basis, check, N=1, epsilon=0):
         """
         Compare two quantum circuits given in QASM format.
@@ -26,6 +27,7 @@ class functionalities:
         # "id" or "2n"
         return qk.CheckEquivalence(cnf, check=check, N=N, epsilon=epsilon)
 
+    @staticmethod
     def sim(qasmfile, basis, measurement):
         """
         Simulate a quantum circuit given in QASM format.
@@ -43,11 +45,12 @@ class functionalities:
         cnf.add_measurement(measurement)
         return qk.Simulate(cnf)
 
+    @staticmethod
     def syn(
         qasmfile,
         basis,
         cyc_lin_encoding=False,
-        fid=1,
+        fid=1.0,
         files_root=None,
         gate_set={"h", "cx", "t"},
     ):
@@ -78,6 +81,7 @@ class functionalities:
             gate_set=gate_set,
         )
 
+    @staticmethod
     def verify(qasmfile, basis, precons, postcons):
         """
         Verify a quantum circuit given in QASM format against preconditions and postconditions.
