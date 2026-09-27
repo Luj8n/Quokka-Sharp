@@ -13,5 +13,6 @@ experiment/run_benchmarks/results/*.png
 experiment/run_benchmarks/results/*.tex
 experiment/run_benchmarks/tmp/*
 tmp/*
+!tmp/.gitkeep
 quokka_sharp/debug.py
-config.json
+.solvers/

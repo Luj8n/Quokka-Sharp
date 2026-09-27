@@ -13,9 +13,6 @@ from .utils.utils import parse_wmc_result
 # Global constants from config
 
 
-
-
-
 def WMC(wmc_file, square):
     """
     Parse the output of WMC to get the weighted model counting result
@@ -25,21 +22,21 @@ def WMC(wmc_file, square):
     Returns:
         result           :  the probability of the circuit
     """
-    TIMEOUT         = qc.CONFIG["TIMEOUT"]
+    TIMEOUT = qc.CONFIG["TIMEOUT"]
     tool_invocation = qc.CONFIG["ToolInvocation"]
 
-    tool_command = tool_invocation.split(' ')
+    tool_command = tool_invocation.split(" ")
     tool_command.append(wmc_file)
     p = Popen(tool_command, stdout=PIPE)
-    try: 
-        result = p.communicate(timeout = TIMEOUT)
+    try:
+        result = p.communicate(timeout=TIMEOUT)
         return parse_wmc_result(result, square)
     except TimeoutExpired:
         os.system("kill -9 " + str(p.pid))
         return "TIMEOUT"
 
 
-def Simulate(cnf: "CNF", cnf_file_root = tempfile.gettempdir()):
+def Simulate(cnf: "CNF", cnf_file_root=tempfile.gettempdir()):
     """
     Simulate a quantum circuit and give the corresponding probability
     Args:
@@ -47,14 +44,16 @@ def Simulate(cnf: "CNF", cnf_file_root = tempfile.gettempdir()):
     Returns:
         result      :  the probability of the circuit
     """
-    DEBUG           = qc.CONFIG["DEBUG"]
+    DEBUG = qc.CONFIG["DEBUG"]
 
     if cnf.vars.i == -1:
         filename = os.path.join(cnf_file_root, "for_sim.cnf")
         cnf.write_to_file(filename)
-        result = WMC(filename, square = cnf.square_result)
+        result = WMC(filename, square=cnf.square_result)
         if result != "TIMEOUT":
-            result = Decimal(result) * (Decimal(1/2)**Decimal(cnf.power_two_normalisation))
+            result = Decimal(result) * (
+                Decimal(1 / 2) ** Decimal(cnf.power_two_normalisation)
+            )
         return result
     else:
         sum_results = 0
@@ -63,32 +62,53 @@ def Simulate(cnf: "CNF", cnf_file_root = tempfile.gettempdir()):
             for s in ["p", "m"]:
                 for t in ["e", "o"]:
                     filename = os.path.join(cnf_file_root, "for_sim.cnf")
-                    if DEBUG: print(c,s,t)
+                    if DEBUG:
+                        print(c, s, t)
                     cnf_copy = copy.deepcopy(cnf)
                     if cnf.computational_basis:
-                        cnf_copy.add_clause([-cnf.vars.i] if (c == "r") else [cnf.vars.i], comment="complex")
-                    cnf_copy.add_clause([-cnf.vars.r] if (s == "p") else [cnf.vars.r], comment="sign")
-                    cnf_copy.add_clause([-cnf.vars.u] if (t == "e") else [cnf.vars.u], comment="sqrt2 norm")
-                    
+                        cnf_copy.add_clause(
+                            [-cnf.vars.i] if (c == "r") else [cnf.vars.i],
+                            comment="complex",
+                        )
+                    cnf_copy.add_clause(
+                        [-cnf.vars.r] if (s == "p") else [cnf.vars.r], comment="sign"
+                    )
+                    cnf_copy.add_clause(
+                        [-cnf.vars.u] if (t == "e") else [cnf.vars.u],
+                        comment="sqrt2 norm",
+                    )
+
                     cnf_copy.write_to_file(filename)
-                    result = WMC(filename, square = False)
+                    result = WMC(filename, square=False)
                     if result == "TIMEOUT":
                         return result
-                    
-                    if DEBUG: print(f"   initial: {result}")
+
+                    if DEBUG:
+                        print(f"   initial: {result}")
                     if s == "m":
                         result = -result
-                    
+
                     if t == "e":
-                        result = Decimal(result) * (Decimal(1/2)**Decimal(cnf.power_two_normalisation))
-                        if DEBUG: print(f"   fixed: {result} (/{cnf.power_two_normalisation})")
+                        result = Decimal(result) * (
+                            Decimal(1 / 2) ** Decimal(cnf.power_two_normalisation)
+                        )
+                        if DEBUG:
+                            print(
+                                f"   fixed: {result} (/{cnf.power_two_normalisation})"
+                            )
                     else:
-                        result = Decimal(result) * (Decimal(1/2)**Decimal(cnf.power_two_normalisation-0.5))
-                        if DEBUG: print(f"   fixed: {result} (/{cnf.power_two_normalisation-0.5})")
+                        result = Decimal(result) * (
+                            Decimal(1 / 2) ** Decimal(cnf.power_two_normalisation - 0.5)
+                        )
+                        if DEBUG:
+                            print(
+                                f"   fixed: {result} (/{cnf.power_two_normalisation - 0.5})"
+                            )
 
                     complex_sum += result
             sum_results += complex_sum * complex_sum
         if not cnf.square_result:
             sum_results = sum_results.sqrt()
-        if DEBUG: print(f"  sum_results: {sum_results}")
+        if DEBUG:
+            print(f"  sum_results: {sum_results}")
         return sum_results

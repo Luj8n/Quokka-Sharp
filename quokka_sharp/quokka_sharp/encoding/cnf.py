@@ -7,13 +7,21 @@ from .qasm_parser import Circuit
 from .utils import rlist
 from .. import config as qc
 
-DEBUG           = qc.CONFIG["DEBUG"]
+DEBUG = qc.CONFIG["DEBUG"]
+
 
 class Variables:
     """
     Class to manage the variables of the CNF encoding.
     """
-    def __init__(self, cnf: 'CNF', computational_basis=False, unitary_encoding = False, Unitary = None):
+
+    def __init__(
+        self,
+        cnf: "CNF",
+        computational_basis=False,
+        unitary_encoding=False,
+        Unitary=None,
+    ):
         """
         Args:
             cnf (CNF): The CNF object to which the variables belong.
@@ -23,10 +31,10 @@ class Variables:
         """
         self.cnf = cnf
         self.n = cnf.n + cnf.ancillas
-        self.i = -1 # HACK: only for unweighted
-        self.r = -1 # HACK: only for unweighted
-        self.u = -1 # HACK: only for unweighted
-        self.Udim = 2 ** self.n
+        self.i = -1  # HACK: only for unweighted
+        self.r = -1  # HACK: only for unweighted
+        self.u = -1  # HACK: only for unweighted
+        self.Udim = 2**self.n
         self.var = 0
         self.XVar = []
         self.ZVar = []
@@ -46,7 +54,7 @@ class Variables:
                 znew = self.add_var()
                 self.z.append(znew)
                 self.ZVar.append(znew)
-            if i >= cnf.n: # ancilla init I
+            if i >= cnf.n:  # ancilla init I
                 cnf.add_clause([-self.x[-1]])
                 if not self.computational_basis:
                     cnf.add_clause([-self.z[-1]])
@@ -60,9 +68,16 @@ class Variables:
                         self.cnf.add_clause([-self.Unitaryvar[i][j]])
                     else:
                         if Unitary[i][j].imag == 0:
-                            self.cnf.add_weight(self.Unitaryvar[i][j], Unitary[i][j].real, 1)
+                            self.cnf.add_weight(
+                                self.Unitaryvar[i][j], Unitary[i][j].real, 1
+                            )
                         else:
-                            self.cnf.add_weight(self.Unitaryvar[i][j], complex(Unitary[i][j].real, Unitary[i][j].imag), 1)
+                            self.cnf.add_weight(
+                                self.Unitaryvar[i][j],
+                                complex(Unitary[i][j].real, Unitary[i][j].imag),
+                                1,
+                            )
+
     def copy(self):
         """
         Create a deep copy of the Variables object.
@@ -91,7 +106,7 @@ class Variables:
         """
         Add a measurement clause to the CNF encoding.
         Args:
-            basis (str or dict): The measurement basis. Can be "allzero", "firstzero", or a dictionary specifying the measurement. 
+            basis (str or dict): The measurement basis. Can be "allzero", "firstzero", or a dictionary specifying the measurement.
             - "allzero": All qubits are measured in the |0> state.
             - "firstzero": The first qubit is measured in the |0> state, and the rest are measured in the I state.
             - dict: A dictionary specifying the measurement for each qubit e.g. {0: 1, 1: 0} means qubit 0 is measured in the |1> state and qubit 1 in the |0> state.
@@ -121,7 +136,9 @@ class Variables:
             self.projector(basis, var_curr=self.var, prepend=False)
             self.normalize(len(basis))
         else:
-            Exception("Please choose firstzero, allzero or a list of qubits measurement")
+            Exception(
+                "Please choose firstzero, allzero or a list of qubits measurement"
+            )
 
     def normalize(self, inc):
         """
@@ -129,7 +146,7 @@ class Variables:
         """
         if self.computational_basis == False:
             self.cnf.power_two_normalisation += inc
-            
+
     def projectAllZero(self, prepend=False):
         """
         Add a clause to project all qubits to the |0> state.
@@ -147,11 +164,13 @@ class Variables:
             idx (int): The index of the qubit to project.
             prepend (bool): If True, the clause is added at the beginning of the CNF encoding, otherwise at the end.
         """
-        assert(not self.computational_basis)
+        assert not self.computational_basis
         if Z_or_X:
-            off_var = self.x; on_var = self.z
+            off_var = self.x
+            on_var = self.z
         else:
-            on_var = self.x; off_var = self.z
+            on_var = self.x
+            off_var = self.z
         for i in range(self.n):
             self.cnf.add_clause([-off_var[i]], prepend)
             if i == idx:
@@ -160,7 +179,7 @@ class Variables:
                 self.cnf.add_clause([-on_var[i]], prepend)
 
     def projectPauli(self, spec, prepend):
-        assert(not self.computational_basis)
+        assert not self.computational_basis
         x = self.x
         z = self.z
         qubitset = list(spec.keys())
@@ -171,17 +190,16 @@ class Variables:
                     self.cnf.add_clause([-z[i]], prepend)
                 elif spec[i] == "Y":
                     self.cnf.add_clause([x[i]], prepend)
-                    self.cnf.add_clause([z[i]], prepend)      
+                    self.cnf.add_clause([z[i]], prepend)
                 elif spec[i] == "Z":
                     self.cnf.add_clause([-x[i]], prepend)
-                    self.cnf.add_clause([z[i]], prepend)  
+                    self.cnf.add_clause([z[i]], prepend)
                 elif spec[i] == "I":
                     self.cnf.add_clause([-x[i]], prepend)
-                    self.cnf.add_clause([-z[i]], prepend)   
+                    self.cnf.add_clause([-z[i]], prepend)
             else:
                 self.cnf.add_clause([-x[i]], prepend)
                 self.cnf.add_clause([-z[i]], prepend)
-            
 
     def projector(self, spec, var_curr, prepend):
         """
@@ -192,13 +210,13 @@ class Variables:
         """
         x = self.x
         qubitset = list(spec.keys())
-        
+
         var_increase = 0
-        
+
         if self.computational_basis:
             # precondition
-            for i in qubitset: 
-                if spec[i] == 0: 
+            for i in qubitset:
+                if spec[i] == 0:
                     self.cnf.add_clause([-x[i]], prepend)
                 else:
                     self.cnf.add_clause([x[i]], prepend)
@@ -216,16 +234,16 @@ class Variables:
                         var_curr += 1
                         var_increase += 1
                         R = var_curr
-                            # X2CNF flip 1 to 0
+                        # X2CNF flip 1 to 0
                         self.cnf.add_weight(R, -1, 1)
                         # Equivalent(R, z[k])
-                        self.cnf.add_clause([ R, -z[i]], prepend)
-                        self.cnf.add_clause([-R,  z[i]], prepend)
-                      
+                        self.cnf.add_clause([R, -z[i]], prepend)
+                        self.cnf.add_clause([-R, z[i]], prepend)
+
                 else:
-                    self.cnf.add_clause([-z[i]], prepend) 
-        return var_increase           
-    
+                    self.cnf.add_clause([-z[i]], prepend)
+        return var_increase
+
     def encode_unitary_static(self, U):
         """
         Encode a unitary matrix into the CNF encoding.
@@ -234,9 +252,9 @@ class Variables:
         """
         assert self.cnf.unitary_encoding
         assert U.shape[0] == U.shape[1]
-        assert U.shape[0] == 2 ** self.n
-        # is_unitary, num_qubits = check_unitary_and_qubits(U)           
-        Udim = 2 ** self.n
+        assert U.shape[0] == 2**self.n
+        # is_unitary, num_qubits = check_unitary_and_qubits(U)
+        Udim = 2**self.n
         Uvar = [[0 for _ in range(Udim)] for _ in range(Udim)]
         for i in range(Udim):
             for j in range(Udim):
@@ -245,13 +263,23 @@ class Variables:
                     self.cnf.add_clause([-Uvar[i][j]])
                 else:
                     self.cnf.add_weight(Uvar[i][j], U[i][j], 1)
-                # add weight Uvar[i][j] --- U[i][j] and not Uvar[i][j] --- 1        
-                
+                # add weight Uvar[i][j] --- U[i][j] and not Uvar[i][j] --- 1
+
+
 class CNF:
     """
     Class to manage the CNF encoding of a quantum circuit.
     """
-    def __init__(self, n = 0, ancillas=0, computational_basis=False, ganak = False, unitary_encoding = False, Unitary = None):
+
+    def __init__(
+        self,
+        n=0,
+        ancillas=0,
+        computational_basis=False,
+        ganak=False,
+        unitary_encoding=False,
+        Unitary=None,
+    ):
         self.clause = 0
         self.n = n
         self.ancillas = ancillas
@@ -271,7 +299,7 @@ class CNF:
         self.unitary_encoding = unitary_encoding
         self.Unitary = Unitary
         if unitary_encoding:
-            try: 
+            try:
                 is_unitary, num_qubits = check_unitary_and_qubits(Unitary)
             except:
                 assert "Please give the matrix in np arrays"
@@ -279,31 +307,35 @@ class CNF:
                 assert "The matrix is not unitary matrix!"
             else:
                 self.n = num_qubits
-                dim   = 2 ** num_qubits   
-                
-                self.vars = Variables(self, computational_basis, unitary_encoding, Unitary) # variables at timestep m (end of circuit)
-                self.vars_init = self.vars.copy()     # variables at timestep 0             
-                
+                dim = 2**num_qubits
+
+                self.vars = Variables(
+                    self, computational_basis, unitary_encoding, Unitary
+                )  # variables at timestep m (end of circuit)
+                self.vars_init = self.vars.copy()  # variables at timestep 0
+
                 xbinary = generate_signed_combinations(self.vars.x)
                 X = []
                 for i in range(self.n):
                     Xnew = self.add_var()
                     X.append(Xnew)
                 Xbinary = generate_signed_combinations(X)
-            #   update the variables
+                #   update the variables
                 self.vars.x = X
                 Ucons = []
                 for i in range(dim):
                     for j in range(dim):
                         for var in xbinary[i]:
-                            self.add_clause([var, - self.vars.Unitaryvar[i][j]])
+                            self.add_clause([var, -self.vars.Unitaryvar[i][j]])
                         for var in Xbinary[j]:
-                            self.add_clause([var, - self.vars.Unitaryvar[i][j]])
+                            self.add_clause([var, -self.vars.Unitaryvar[i][j]])
                         Ucons.append(self.vars.Unitaryvar[i][j])
-                self.add_clause(Ucons)  
+                self.add_clause(Ucons)
         else:
-            self.vars = Variables(self, computational_basis, unitary_encoding, Unitary) # variables at timestep m (end of circuit)
-            self.vars_init = self.vars.copy()     # variables at timestep 0
+            self.vars = Variables(
+                self, computational_basis, unitary_encoding, Unitary
+            )  # variables at timestep m (end of circuit)
+            self.vars_init = self.vars.copy()  # variables at timestep 0
 
     @staticmethod
     def _is_zero_imag_part(value):
@@ -326,8 +358,6 @@ class CNF:
         self.vars_init.cnf = self
         new.vars.cnf = new
         new.vars_init.cnf = new
-        
-        
 
     def finalize(self):
         """
@@ -348,7 +378,7 @@ class CNF:
             Z_or_X (bool): If True, project to Z basis, otherwise to X.
             i (int): The index of the qubit to project.
         """
-        assert(not self.computational_basis)
+        assert not self.computational_basis
         self.vars_init.projectZXi(Z_or_X, i, prepend=True)
 
     def rightProjectAllZero(self):
@@ -366,10 +396,10 @@ class CNF:
             Z_or_X (bool): If True, project to Z basis, otherwise to X.
             i (int): The index of the qubit to project.
         """
-        assert(not self.computational_basis)
+        assert not self.computational_basis
         if not self.locked:
             self.finalize()
-        self.vars.projectZXi(Z_or_X, i, prepend=True)        
+        self.vars.projectZXi(Z_or_X, i, prepend=True)
 
     def precondition(self, spec):
         """
@@ -377,13 +407,15 @@ class CNF:
         Args:
             spec (dict): A dictionary specifying the projector. The keys are qubit indices and the values are 0 or 1.
         """
-        
+
         vals = set(spec.values())
 
         kind = (
-            "bit"    if vals <= {0, 1} else
-            "pauli"  if vals <= {"X", "Y", "Z", "I"} else
-            "illegal"
+            "bit"
+            if vals <= {0, 1}
+            else "pauli"
+            if vals <= {"X", "Y", "Z", "I"}
+            else "illegal"
         )
         var_curr = self.vars.var
         # precondition
@@ -395,9 +427,7 @@ class CNF:
             self.vars_init.projectPauli(spec, prepend=True)
         else:
             raise ValueError("The specification is illegal.")
-        
-        
-        
+
         # normalization
         if self.computational_basis:
             self.power_two_normalisation += self.n - len(spec)
@@ -406,7 +436,7 @@ class CNF:
                 self.power_two_normalisation += len(spec)
             elif kind == "pauli":
                 self.normalisation += len(spec)
-    
+
     def postcondition(self, spec):
         """
         Add a projector clause to the CNF encoding for the final state.
@@ -416,9 +446,11 @@ class CNF:
         vals = set(spec.values())
 
         kind = (
-            "bit"    if vals <= {0, 1} else
-            "pauli"  if vals <= {"X", "Y", "Z", "I"} else
-            "illegal"
+            "bit"
+            if vals <= {0, 1}
+            else "pauli"
+            if vals <= {"X", "Y", "Z", "I"}
+            else "illegal"
         )
         var_curr = self.vars.var
         # postcondition
@@ -428,62 +460,70 @@ class CNF:
         elif kind == "pauli":
             self.vars.projectPauli(spec, prepend=False)
         else:
-            raise ValueError("The specification is illegal.")    
+            raise ValueError("The specification is illegal.")
         # if not self.computational_basis:
         #     self.power_two_normalisation -= len(spec)
         if not self.locked:
             self.finalize()
-    def add_identity_clauses(self, constrain_2n = False, constrain_no_Y = False):
+
+    def add_identity_clauses(self, constrain_2n=False, constrain_no_Y=False):
         """
         Add clauses dictating that the initial state matches the final state.
         Args:
             constrain_2n (bool): If True, limit the initial states to the 2*n states of single X or single Z.
-            constrain_no_Y (bool): If True, limit the initial state to I, X or Z (no Y). 
+            constrain_no_Y (bool): If True, limit the initial state to I, X or Z (no Y).
             # no sense using both
         """
-        assert(self.vars.n == self.vars_init.n)
+        assert self.vars.n == self.vars_init.n
         assert not (constrain_2n and constrain_no_Y)
         for i in range(self.vars.n):
-            self.add_clause([ self.vars.x[i], -self.vars_init.x[i]])
-            self.add_clause([-self.vars.x[i],  self.vars_init.x[i]])
+            self.add_clause([self.vars.x[i], -self.vars_init.x[i]])
+            self.add_clause([-self.vars.x[i], self.vars_init.x[i]])
             if not self.computational_basis:
-                self.add_clause([ self.vars.z[i], -self.vars_init.z[i]])
-                self.add_clause([-self.vars.z[i],  self.vars_init.z[i]])
+                self.add_clause([self.vars.z[i], -self.vars_init.z[i]])
+                self.add_clause([-self.vars.z[i], self.vars_init.z[i]])
         if constrain_2n:
             if not self.computational_basis:
                 from .pauli2cnf import pauli2cnf as to_CNF
-                to_CNF.AMO(self, self.vars_init.x+self.vars_init.z)
-            else: 
-                assert False, f"ERROR: identity with constrain_2n for computational_basis not suported"
+
+                to_CNF.AMO(self, self.vars_init.x + self.vars_init.z)
+            else:
+                assert False, (
+                    f"ERROR: identity with constrain_2n for computational_basis not suported"
+                )
         if constrain_no_Y:
             if not self.computational_basis:
                 for i in range(self.vars.n):
                     self.add_clause([-self.vars_init.x[i], -self.vars_init.z[i]])
-            else: 
-                assert False, f"ERROR: identity with constrain_no_Y for computational_basis not suported"
+            else:
+                assert False, (
+                    f"ERROR: identity with constrain_no_Y for computational_basis not suported"
+                )
         if not self.locked:
-            self.finalize() 
+            self.finalize()
 
     def add_measurement(self, basis):
         """
         Add a measurement clause to the CNF encoding (for the final state).
         Args:
-            basis (str or dict): The measurement basis. Can be "allzero", "firstzero", or a dictionary specifying the measurement. 
+            basis (str or dict): The measurement basis. Can be "allzero", "firstzero", or a dictionary specifying the measurement.
             - "allzero": All qubits are measured in the |0> state.
             - "firstzero": The first qubit is measured in the |0> state, and the rest are measured in the I state.
             - dict: A dictionary specifying the measurement for each qubit e.g. {0: 1, 1: 0} means qubit 0 is measured in the |1> state and qubit 1 in the |0> state.
         """
-        self.vars.measurement(basis, False) 
+        self.vars.measurement(basis, False)
         if not self.locked:
-            self.finalize() 
+            self.finalize()
 
     def add_normalization(self):
         """
         Increment CNF normalization factor if a measurement is replaced by a controlled gate.
         """
         self.vars.normalize(1)
-            
-    def add_var(self, syn_gate_pick = False, Name ="UnNamed", bits = None, projection_var = False):
+
+    def add_var(
+        self, syn_gate_pick=False, Name="UnNamed", bits=None, projection_var=False
+    ):
         """
         Add a new variable to the CNF encoding.
         Args:
@@ -499,18 +539,38 @@ class CNF:
         if projection_var:
             self.syn_projection_vars.add(var)
         if syn_gate_pick:
-            self.syn_gate_picking_vars[var] = {"Name": Name, "bits": bits, "layer": self.syn_gate_layer}
-            if Name not in self.syn_gate_picking_vars_by_layer_and_gate[self.syn_gate_layer]:
-                self.syn_gate_picking_vars_by_layer_and_gate[self.syn_gate_layer][Name] = {}
+            self.syn_gate_picking_vars[var] = {
+                "Name": Name,
+                "bits": bits,
+                "layer": self.syn_gate_layer,
+            }
+            if (
+                Name
+                not in self.syn_gate_picking_vars_by_layer_and_gate[self.syn_gate_layer]
+            ):
+                self.syn_gate_picking_vars_by_layer_and_gate[self.syn_gate_layer][
+                    Name
+                ] = {}
             if len(bits) == 1:
-                self.syn_gate_picking_vars_by_layer_and_gate[self.syn_gate_layer][Name][bits[0]] = var
+                self.syn_gate_picking_vars_by_layer_and_gate[self.syn_gate_layer][Name][
+                    bits[0]
+                ] = var
             else:
-                if bits[0] not in self.syn_gate_picking_vars_by_layer_and_gate[self.syn_gate_layer][Name]:
-                    self.syn_gate_picking_vars_by_layer_and_gate[self.syn_gate_layer][Name][bits[0]] = {}
-                self.syn_gate_picking_vars_by_layer_and_gate[self.syn_gate_layer][Name][bits[0]][bits[1]] = var
+                if (
+                    bits[0]
+                    not in self.syn_gate_picking_vars_by_layer_and_gate[
+                        self.syn_gate_layer
+                    ][Name]
+                ):
+                    self.syn_gate_picking_vars_by_layer_and_gate[self.syn_gate_layer][
+                        Name
+                    ][bits[0]] = {}
+                self.syn_gate_picking_vars_by_layer_and_gate[self.syn_gate_layer][Name][
+                    bits[0]
+                ][bits[1]] = var
         return var
-    
-    def get_syn_var_past_layer(self, Name ="UnNamed", bit = None, past=1):
+
+    def get_syn_var_past_layer(self, Name="UnNamed", bit=None, past=1):
         """
         Get the variable for a specific gate and qubit index in the past layer.
         Args:
@@ -523,14 +583,17 @@ class CNF:
         """
         try:
             if type(bit) is int:
-                return self.syn_gate_picking_vars_by_layer_and_gate[self.syn_gate_layer-past][Name][bit]
+                return self.syn_gate_picking_vars_by_layer_and_gate[
+                    self.syn_gate_layer - past
+                ][Name][bit]
             if type(bit) is list:
-                return self.syn_gate_picking_vars_by_layer_and_gate[self.syn_gate_layer-past][Name][bit[0]][bit[1]]
+                return self.syn_gate_picking_vars_by_layer_and_gate[
+                    self.syn_gate_layer - past
+                ][Name][bit[0]][bit[1]]
         except KeyError:
             return 0.5
 
-
-    def add_clause(self, cons: list, prepend=False, comment=None):   
+    def add_clause(self, cons: list, prepend=False, comment=None):
         """
         Add a clause to the CNF encoding.
         Args:
@@ -544,9 +607,11 @@ class CNF:
             return
         if 0.5 in cons:
             # 0.5 is false, so the clause is a contradiction!
-            raise KeyError("used an invalid past variable, and added its true literal to a clause")
+            raise KeyError(
+                "used an invalid past variable, and added its true literal to a clause"
+            )
         self.clause += 1
-        constr = ''
+        constr = ""
         for i in range(len(cons)):
             assert type(cons[i]) is int
             constr += str(cons[i]) + " "
@@ -564,14 +629,14 @@ class CNF:
         """
         Normalize weight and neg_weight to have the same type.
         Both must be either Decimal/real or complex.
-        
+
         Args:
             weight: Weight value (int, float, Decimal, or complex)
             neg_weight: Negated weight value (int, float, Decimal, or complex)
-            
+
         Returns:
             tuple: (normalized_weight, normalized_neg_weight) with consistent types
-            
+
         Raises:
             TypeError: If types cannot be made consistent
         """
@@ -583,7 +648,7 @@ class CNF:
         # Convert to more specific types if needed
         is_weight_complex = isinstance(weight, complex)
         is_neg_weight_complex = isinstance(neg_weight, complex)
-        
+
         print(is_weight_complex, is_neg_weight_complex)
         # If either is complex, convert both to complex
         if is_weight_complex or is_neg_weight_complex:
@@ -603,7 +668,7 @@ class CNF:
                 weight = Decimal(weight)
             if not isinstance(neg_weight, Decimal):
                 neg_weight = Decimal(neg_weight)
-        
+
         return weight, neg_weight
 
     def add_weight(self, var, weight, neg_weight, comment=None):
@@ -614,15 +679,15 @@ class CNF:
             weight: The weight to be added. May be Decimal or complex.
             neg_weight: The weight for the negated literal `-var`. May be Decimal or complex.
             comment (str): A comment to be added to the weight for debugging purposes (currently disabled since it causes problems for cnf solvers).
-            
+
         Note:
             weight and neg_weight will be normalized to the same type:
             - Both become complex if either is complex
             - Both become Decimal otherwise
-        """      
+        """
         # Normalize types to ensure consistency
         # weight, neg_weight = self._normalize_weight_types(weight, neg_weight)
-        
+
         if var < len(self.weights) and self.weights[var] is not None:
             # Multiply existing (weight, neg_weight) tuple by new values
             old_w, old_nw = self.weights[var]
@@ -632,7 +697,7 @@ class CNF:
         else:
             # Store new (weight, neg_weight) tuple
             if DEBUG:
-                print(f"ADD ({var}):", neg_weight, " ",  weight)
+                print(f"ADD ({var}):", neg_weight, " ", weight)
             self.weights[var] = (weight, neg_weight)
 
     def _weights_to_string(self, syntesis_fomat=False):
@@ -652,17 +717,17 @@ class CNF:
             lines.append(line)
             line = self.encode_weight(-var, neg_weight)
             lines.append(line)
-        return ''.join(lines)
+        return "".join(lines)
 
     def encode_weight(self, var, weight):
         is_complex = isinstance(weight, complex)
-        weight_kind = "weight" 
-            # if not syntesis_fomat:
-            #     weight_kind = "weight"
+        weight_kind = "weight"
+        # if not syntesis_fomat:
+        #     weight_kind = "weight"
         real_part = weight.real if isinstance(weight, complex) else weight
         line = f"c p {weight_kind} {var} {real_part}"
         if is_complex:
-                # support ganak complex format
+            # support ganak complex format
             if self.ganak:
                 line += f" + {weight.imag}i"
             else:
@@ -678,21 +743,42 @@ class CNF:
         Returns:
             str: The string representation of the variables for projection.
         """
-        return ' '.join([str(v) for vars in VarList for v in vars])
+        return " ".join([str(v) for vars in VarList for v in vars])
 
-    def write_to_file(self, cnf_file, syntesis_fomat = False, projectionset = []):
-        with open(cnf_file, 'w') as the_file:
-            the_file.writelines("p cnf " + str(self.vars.var)+" "+str(self.clause)+"\n")
+    def write_to_file(self, cnf_file, syntesis_fomat=False, projectionset=[]):
+        with open(cnf_file, "w") as the_file:
+            the_file.writelines(
+                "p cnf " + str(self.vars.var) + " " + str(self.clause) + "\n"
+            )
             if len(projectionset) > 0:
-                the_file.writelines("c p show " + self.ProjectionSet(projectionset) + " 0\n")
+                the_file.writelines(
+                    "c p show " + self.ProjectionSet(projectionset) + " 0\n"
+                )
             if syntesis_fomat:
-                the_file.write("c max " +' '.join([str(v) for v in self.syn_gate_picking_vars.keys()]) + " 0\n")
-                the_file.write("c ind " +' '.join([str(v) for v in (range(1,self.vars.var+1) - self.syn_gate_picking_vars.keys() - self.syn_projection_vars)]) + " 0\n") 
+                the_file.write(
+                    "c max "
+                    + " ".join([str(v) for v in self.syn_gate_picking_vars.keys()])
+                    + " 0\n"
+                )
+                the_file.write(
+                    "c ind "
+                    + " ".join(
+                        [
+                            str(v)
+                            for v in (
+                                range(1, self.vars.var + 1)
+                                - self.syn_gate_picking_vars.keys()
+                                - self.syn_projection_vars
+                            )
+                        ]
+                    )
+                    + " 0\n"
+                )
             weights_str = self._weights_to_string(syntesis_fomat=syntesis_fomat)
             the_file.write(weights_str)
-            the_file.write(''.join(self.cons_list))
+            the_file.write("".join(self.cons_list))
 
-    def encode_circuit(self, circuit : Circuit):
+    def encode_circuit(self, circuit: Circuit):
         """
         Encode a quantum circuit into the CNF encoding.
         Args:
@@ -704,136 +790,136 @@ class CNF:
             self.circuit.append(copy.deepcopy(circuit))
 
         if self.computational_basis:
-            from .comput2cnf import comput2cnf as to_CNF 
+            from .comput2cnf import comput2cnf as to_CNF
         else:
             from .pauli2cnf import pauli2cnf as to_CNF
 
         to_CNF.init(self)
 
         for element in circuit.circ:
-            if len(element) == 4 and element[3] == 'if':
+            if len(element) == 4 and element[3] == "if":
                 self.add_normalization()
             gate = element[0]
-            if gate == 'id':
+            if gate == "id":
                 pass
-            elif gate == 'h':
+            elif gate == "h":
                 k = int(element[1])
-                to_CNF.H2CNF(self,k)
-            elif gate == 'x':
+                to_CNF.H2CNF(self, k)
+            elif gate == "x":
                 k = int(element[1])
-                to_CNF.X2CNF(self,k)
-            elif gate == 'y':
+                to_CNF.X2CNF(self, k)
+            elif gate == "y":
                 k = int(element[1])
-                to_CNF.Y2CNF(self,k)
-            elif gate == 'z':
+                to_CNF.Y2CNF(self, k)
+            elif gate == "z":
                 k = int(element[1])
-                to_CNF.Z2CNF(self,k)           
-            elif gate == 's':
+                to_CNF.Z2CNF(self, k)
+            elif gate == "s":
                 k = int(element[1])
-                to_CNF.S2CNF(self,k)
-            elif gate == 'sdg':
+                to_CNF.S2CNF(self, k)
+            elif gate == "sdg":
                 k = int(element[1])
-                to_CNF.Sdg2CNF(self,k)
-            elif gate == 't':
+                to_CNF.Sdg2CNF(self, k)
+            elif gate == "t":
                 k = int(element[1])
                 to_CNF.T2CNF(self, k)
-            elif gate == 'tdg':
+            elif gate == "tdg":
                 k = int(element[1])
-                to_CNF.Tdg2CNF(self,k)
-            elif gate == 'cx':
+                to_CNF.Tdg2CNF(self, k)
+            elif gate == "cx":
                 j = int(element[1])
                 k = int(element[2])
-                to_CNF.CNOT2CNF(self,j,k)
-            elif gate == 'cz':
+                to_CNF.CNOT2CNF(self, j, k)
+            elif gate == "cz":
                 j = int(element[1])
                 k = int(element[2])
-                to_CNF.CZ2CNF(self,j,k)  
-            elif gate == 'cy':
+                to_CNF.CZ2CNF(self, j, k)
+            elif gate == "cy":
                 j = int(element[1])
                 k = int(element[2])
-                to_CNF.CY2CNF(self,j,k)  
-            elif gate == 'swap':
+                to_CNF.CY2CNF(self, j, k)
+            elif gate == "swap":
                 j = int(element[1])
                 k = int(element[2])
-                to_CNF.SWAP2CNF(self,j,k)  
-            elif gate == 'iswap':
+                to_CNF.SWAP2CNF(self, j, k)
+            elif gate == "iswap":
                 j = int(element[1])
                 k = int(element[2])
-                to_CNF.SWAP2CNF(self,j,k)
-                to_CNF.CZ2CNF(self,j,k)
-                to_CNF.S2CNF(self,j)
-                to_CNF.S2CNF(self,k) 
-            elif gate == 'iswapdg':
+                to_CNF.SWAP2CNF(self, j, k)
+                to_CNF.CZ2CNF(self, j, k)
+                to_CNF.S2CNF(self, j)
+                to_CNF.S2CNF(self, k)
+            elif gate == "iswapdg":
                 j = int(element[1])
                 k = int(element[2])
-                to_CNF.Sdg2CNF(self,k) 
-                to_CNF.Sdg2CNF(self,j)
-                to_CNF.CZ2CNF(self,j,k)
-                to_CNF.SWAP2CNF(self,j,k)
-            elif gate == 'cs':
+                to_CNF.Sdg2CNF(self, k)
+                to_CNF.Sdg2CNF(self, j)
+                to_CNF.CZ2CNF(self, j, k)
+                to_CNF.SWAP2CNF(self, j, k)
+            elif gate == "cs":
                 j = int(element[1])
                 k = int(element[2])
-                to_CNF.CS2CNF(self,j,k)  
-            elif gate == 'csdg':
+                to_CNF.CS2CNF(self, j, k)
+            elif gate == "csdg":
                 j = int(element[1])
                 k = int(element[2])
-                to_CNF.CSdg2CNF(self,j,k) 
-            elif gate == 'ct':
+                to_CNF.CSdg2CNF(self, j, k)
+            elif gate == "ct":
                 j = int(element[1])
                 k = int(element[2])
-                to_CNF.RZ2CNF(self,j, np.pi/8)
-                to_CNF.RZ2CNF(self,k, np.pi/8)
-                to_CNF.CNOT2CNF(self,j,k)
-                to_CNF.RZ2CNF(self,k, -np.pi/8)
-                to_CNF.CNOT2CNF(self,j,k)
-            elif gate == 'ctdg':
+                to_CNF.RZ2CNF(self, j, np.pi / 8)
+                to_CNF.RZ2CNF(self, k, np.pi / 8)
+                to_CNF.CNOT2CNF(self, j, k)
+                to_CNF.RZ2CNF(self, k, -np.pi / 8)
+                to_CNF.CNOT2CNF(self, j, k)
+            elif gate == "ctdg":
                 j = int(element[1])
                 k = int(element[2])
-                to_CNF.CNOT2CNF(self,j,k)
-                to_CNF.RZ2CNF(self,k, np.pi/8)
-                to_CNF.CNOT2CNF(self,j,k)
-                to_CNF.RZ2CNF(self,k, -np.pi/8)
-                to_CNF.RZ2CNF(self,j, -np.pi/8)
-            elif gate == 'csqrtx':
+                to_CNF.CNOT2CNF(self, j, k)
+                to_CNF.RZ2CNF(self, k, np.pi / 8)
+                to_CNF.CNOT2CNF(self, j, k)
+                to_CNF.RZ2CNF(self, k, -np.pi / 8)
+                to_CNF.RZ2CNF(self, j, -np.pi / 8)
+            elif gate == "csqrtx":
                 j = int(element[1])
                 k = int(element[2])
-                to_CNF.CSqrtX2CNF(self,j,k)
-            elif gate == 'csqrtxdg':
+                to_CNF.CSqrtX2CNF(self, j, k)
+            elif gate == "csqrtxdg":
                 j = int(element[1])
                 k = int(element[2])
-                to_CNF.CSqrtXdg2CNF(self,j,k)
-            elif gate[0] == 'r':
+                to_CNF.CSqrtXdg2CNF(self, j, k)
+            elif gate[0] == "r":
                 angle = element[1]
                 k = int(element[2])
-                if gate == 'rx':
-                    to_CNF.RX2CNF(self,k, angle)
-                elif gate == 'rz':
-                    to_CNF.RZ2CNF(self,k, angle)
-                elif gate == 'ry':
-                    to_CNF.S2CNF(self,k)
-                    to_CNF.RX2CNF(self,k, angle)
-                    to_CNF.Sdg2CNF(self,k)
-                elif gate == 'rxdg':
-                    to_CNF.RX2CNF(self,k, -angle)
-                elif gate == 'rzdg':
-                    to_CNF.RZ2CNF(self,k, -angle)
-                elif gate == 'rydg':
-                    to_CNF.Sdg2CNF(self,k)
-                    to_CNF.RX2CNF(self,k, -angle)
-                    to_CNF.S2CNF(self,k)
+                if gate == "rx":
+                    to_CNF.RX2CNF(self, k, angle)
+                elif gate == "rz":
+                    to_CNF.RZ2CNF(self, k, angle)
+                elif gate == "ry":
+                    to_CNF.S2CNF(self, k)
+                    to_CNF.RX2CNF(self, k, angle)
+                    to_CNF.Sdg2CNF(self, k)
+                elif gate == "rxdg":
+                    to_CNF.RX2CNF(self, k, -angle)
+                elif gate == "rzdg":
+                    to_CNF.RZ2CNF(self, k, -angle)
+                elif gate == "rydg":
+                    to_CNF.Sdg2CNF(self, k)
+                    to_CNF.RX2CNF(self, k, -angle)
+                    to_CNF.S2CNF(self, k)
                 else:
-                    raise Exception(str(gate) + " undefined."+ str(element))
+                    raise Exception(str(gate) + " undefined." + str(element))
             elif gate == "ccx":
                 qubitc1 = int(element[1])
                 qubitc2 = int(element[2])
-                qubitr  = int(element[3])
+                qubitr = int(element[3])
                 to_CNF.CCX2CNF(self, qubitc1, qubitc2, qubitr)
-            elif gate == 'measure':
+            elif gate == "measure":
                 qubit = int(element[1])
                 self.add_measurement({qubit: 0})
             else:
-                raise Exception(str(gate) + " undefined."+ str(element))
-            
+                raise Exception(str(gate) + " undefined." + str(element))
+
     def encode_composition(self, composition_dictionary):
         """
         Encode a PauliStrings composition into the CNF encoding.
@@ -841,6 +927,7 @@ class CNF:
             composition_dictionary (dict): The PauliStrings composition to be encoded.
         """
         from .pauli2cnf import pauli2cnf as to_CNF
+
         to_CNF.Composition2CNF(self, composition_dictionary)
 
     def add_syn_layer(self, gate_set, n=1, limit_gates=False, h_layer=False):
@@ -852,17 +939,19 @@ class CNF:
             h_layer (bool): Relevent only if limit_gates. If True, only allow Hadamard layer, else allow any gate but Hadamard.
         """
         if self.computational_basis:
-            from .comput2cnf import comput2cnf as to_CNF 
+            from .comput2cnf import comput2cnf as to_CNF
         else:
             from .pauli2cnf import pauli2cnf as to_CNF
-        
+
         for _ in range(n):
             self.syn_gate_layer += 1
             self.syn_gate_picking_vars_by_layer_and_gate[self.syn_gate_layer] = {}
             if self.computational_basis:
                 to_CNF.SynLayer2CNF(self, gate_set=gate_set)
             else:
-                to_CNF.SynLayer2CNF(self, gate_set=gate_set, limit_gates=limit_gates, h_layer=h_layer)
+                to_CNF.SynLayer2CNF(
+                    self, gate_set=gate_set, limit_gates=limit_gates, h_layer=h_layer
+                )
 
     def get_syn_circuit(self, assignment) -> Circuit:
         """
@@ -877,12 +966,12 @@ class CNF:
         for v in assignment:
             if int(v) > 0:
                 gate = self.syn_gate_picking_vars[int(v)]
-                if gate['Name'] == "id":
+                if gate["Name"] == "id":
                     continue
-                if len(gate['bits'])==1:
-                    circuit.add_single(gate['Name'], gate['bits'][0])
-                elif len(gate['bits'])==2:
-                    circuit.add_double(gate['Name'], gate['bits'][0], gate['bits'][1])
+                if len(gate["bits"]) == 1:
+                    circuit.add_single(gate["Name"], gate["bits"][0])
+                elif len(gate["bits"]) == 2:
+                    circuit.add_double(gate["Name"], gate["bits"][0], gate["bits"][1])
                 else:
                     assert False
         return circuit
@@ -907,9 +996,7 @@ class CNF:
     #             for b in gate['bits']:
     #                 s += f" q[{b}]"
     #             s += f" ;\n"
-    #     return s     
-
-
+    #     return s
 
     def get_syn_qasm(self, assignment) -> str:
         """
@@ -922,19 +1009,20 @@ class CNF:
         s = "OPENQASM 2.0;\n"
         s += 'include "qelib1.inc";\n'
         s += f"qreg q[{self.n + self.ancillas}];\n"
-    
+
         for v in assignment:
             if int(v) > 0:
                 gate = self.syn_gate_picking_vars[int(v)]
-    
+
                 if gate["Name"] == "id":
                     continue
-    
+
                 args = ",".join(f"q[{b}]" for b in gate["bits"])
                 s += f"{gate['Name']} {args};\n"
-    
+
         return s
-        
+
+
 def generate_signed_combinations(lst):
     """
     Generate all signed combinations of a list of numbers.
@@ -945,13 +1033,14 @@ def generate_signed_combinations(lst):
     """
     n = len(lst)
     result = {}
-    
+
     for signs in product([0, 1], repeat=n):
         signed_list = [num if sign else -num for num, sign in zip(lst, signs)]
         signs = signs[::-1]
-        binary_code = ''.join(map(str,signs))
-        result[int(binary_code,2)] = signed_list
+        binary_code = "".join(map(str, signs))
+        result[int(binary_code, 2)] = signed_list
     return result
+
 
 def check_unitary_and_qubits(U, tol=1e-12):
     """
@@ -965,23 +1054,27 @@ def check_unitary_and_qubits(U, tol=1e-12):
     # Check if U is square
     if U.shape[0] != U.shape[1]:
         return False, None
-    
+
     # Check if U is unitary
     U_dagger = np.conjugate(U).T
     identity = np.eye(U.shape[0])
-    
-    is_unitary = np.allclose(U_dagger @ U, identity, atol=tol) and np.allclose(U @ U_dagger, identity, atol=tol)
-    
+
+    is_unitary = np.allclose(U_dagger @ U, identity, atol=tol) and np.allclose(
+        U @ U_dagger, identity, atol=tol
+    )
+
     # Determine the number of qubits
     size = U.shape[0]
     num_qubits = None
     if (size & (size - 1)) == 0:  # Check if size is a power of 2
         num_qubits = int(np.log2(size))
-    
+
     return is_unitary, num_qubits
 
 
-def QASM2CNF(circuit: Circuit, computational_basis = False, ancillas = 0, ganak = False) -> CNF:
+def QASM2CNF(
+    circuit: Circuit, computational_basis=False, ancillas=0, ganak=False
+) -> CNF:
     """
     Construct a CNF object for a given quantum circuit.
     Args:
@@ -992,12 +1085,17 @@ def QASM2CNF(circuit: Circuit, computational_basis = False, ancillas = 0, ganak 
     Returns:
         CNF: The CNF object representing the quantum circuit.
     """
-    cnf = CNF(circuit.n, ancillas = circuit.ancillas + ancillas, computational_basis = computational_basis, ganak = ganak)
+    cnf = CNF(
+        circuit.n,
+        ancillas=circuit.ancillas + ancillas,
+        computational_basis=computational_basis,
+        ganak=ganak,
+    )
     cnf.encode_circuit(circuit)
-    return cnf 
+    return cnf
 
 
-def Composition2CNF(composition_dictionary, ancillas = 0) -> CNF:
+def Composition2CNF(composition_dictionary, ancillas=0) -> CNF:
     """
     Construct a CNF object for a given PauliStrings composition.
     Args:
@@ -1006,6 +1104,8 @@ def Composition2CNF(composition_dictionary, ancillas = 0) -> CNF:
     Returns:
         CNF: The CNF object representing the PauliStrings composition.
     """
-    cnf = CNF(composition_dictionary["qubits"], computational_basis = False, ancillas=ancillas)
+    cnf = CNF(
+        composition_dictionary["qubits"], computational_basis=False, ancillas=ancillas
+    )
     cnf.encode_composition(composition_dictionary)
     return cnf
