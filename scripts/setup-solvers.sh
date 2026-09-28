@@ -253,6 +253,12 @@ patch_d4() {
   local d4_src=$1
   local file
 
+  # The nested MaxSharpSatResult calls getBit without a MaxT instance.
+  sed -i.bak \
+    's/inline u_int8_t getBit(/static inline u_int8_t getBit(/' \
+    "$d4_src/src/methods/MaxT.hpp"
+  rm "$d4_src/src/methods/MaxT.hpp.bak"
+
   # GNU make uses '%' rather than '*' as the wildcard in filter/filter-out.
   # Without this correction Main.cc is accidentally included in the Glucose
   # library prerequisites.
