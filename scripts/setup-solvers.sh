@@ -173,7 +173,8 @@ check_sha() {
 }
 
 run() {
-  "$bin_dir/micromamba" run -p "$env_dir" "$@"
+  # Make defaults to g++, which bypasses Conda's Clang on macOS.
+  "$bin_dir/micromamba" run -p "$env_dir" env CXX="$env_dir/bin/c++" "$@"
 }
 
 extract() {
@@ -337,48 +338,26 @@ double bipe::Glucose::memUsedPeak(void) { return memUsed(); }
 #endif
 PATCH_EOF
 
-  # The checked-in PaToH archive in this d4 revision contains Linux ELF
-  # x86-64 objects, so it cannot be linked into a native macOS executable.
-  #
-  # demo/maxT explicitly selects BRANCHING_CLASSIC for both its branching
-  # heuristics, so PaToH isn't used by the executable installed here.
-  #
-  # Compile a stub on macOS and omit the incompatible archive.
+  # Bundled PaToH is Linux/x86-64 only. maxT uses BRANCHING_CLASSIC, so
+  # stub out the unused partitioner and omit its archive on macOS.
   cat > "$d4_src/src/partitioner/PartitionerPatoh.cpp" <<'PATCH_EOF'
-/* macOS portability stub installed by scripts/setup-solvers.sh. */
-
 #include "PartitionerPatoh.hpp"
-
 #include "src/exceptions/OptionException.hpp"
 
 namespace d4 {
-
-PartitionerPatoh::PartitionerPatoh(const InfoHyperGraph &infoHyperGraph,
-                                   std::ostream &out)
+PartitionerPatoh::PartitionerPatoh(const InfoHyperGraph &, std::ostream &)
     : m_xpins(nullptr),
       m_pins(nullptr),
       m_cwghts(nullptr),
       m_partvec(nullptr),
-      m_partweights(nullptr) {
-  (void)infoHyperGraph;
-  (void)out;
-}
+      m_partweights(nullptr) {}
 
 PartitionerPatoh::~PartitionerPatoh() = default;
 
-void PartitionerPatoh::computePartition(HyperGraph &hypergraph,
-                                        Level level,
-                                        std::vector<int> &partition) {
-  (void)hypergraph;
-  (void)level;
-  (void)partition;
-
-  throw OptionException(
-      "PaToH is unavailable in the macOS local solver build.",
-      __FILE__,
-      __LINE__);
+void PartitionerPatoh::computePartition(HyperGraph &, Level, std::vector<int> &) {
+  throw OptionException("PaToH is unavailable in the macOS local solver build.",
+                        __FILE__, __LINE__);
 }
-
 }  // namespace d4
 PATCH_EOF
 
