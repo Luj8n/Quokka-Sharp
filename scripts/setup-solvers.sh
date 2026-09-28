@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
-# Install GPMC, Ganak, and d4 maxT locally, without messing with the system itself.
-# Files installed by this script stay within this repository.
-# GPMC and maxT use local libraries plus the OS's standard C library
-# (glibc on Linux); they are not fully static.
+# Install GPMC, Ganak, and d4 maxT locally, without modifying the system.
+# Build tools, libraries, and patched sources stay in .solvers.
+# GPMC and maxT use local libraries plus the OS's C library (not fully static).
 set -euo pipefail
 
 root=$(cd "$(dirname "$0")/.." && pwd)
@@ -54,6 +53,7 @@ main() {
   build_gpmc
   build_d4
   install_ganak
+  verify_install
   echo "Installed GPMC, Ganak, and maxT in $bin_dir"
 }
 
@@ -72,91 +72,280 @@ prepare_install() {
     echo "Solver directory already exists: $local_dir (remove it to reinstall)" >&2
     return 1
   fi
-  mkdir -p "$bin_dir" "$src_dir" "$local_dir/cache" "$local_dir/tmp"
-  export XDG_CACHE_HOME="$local_dir/cache" TMPDIR="$local_dir/tmp"
+
+  export XDG_CACHE_HOME="$local_dir/cache"
+  export TMPDIR="$local_dir/tmp"
+  mkdir -p "$bin_dir" "$src_dir" "$XDG_CACHE_HOME" "$TMPDIR"
 }
 
 install_toolchain() {
   echo "Downloading local build environment for $platform"
-  download_verified "https://github.com/mamba-org/micromamba-releases/releases/download/2.9.0-0/micromamba-$platform" "$bin_dir/micromamba" "$mamba_sha"
+
+  download_verified \
+    "https://github.com/mamba-org/micromamba-releases/releases/download/2.9.0-0/micromamba-$platform" \
+    "$bin_dir/micromamba" \
+    "$mamba_sha"
+
   chmod +x "$bin_dir/micromamba"
-  export MAMBA_ROOT_PREFIX="$local_dir/mamba" CONDA_PKGS_DIRS="$local_dir/mamba/pkgs"
-  local extra_packages=() candidate
-  if [[ "$platform" == osx-* ]]; then extra_packages+=("binutils_impl_$platform"); fi
-  "$bin_dir/micromamba" create -y -p "$env_dir" -c conda-forge --override-channels \
-    'cmake>=4.1' make \
-    cxx-compiler gmp mpfr zlib boost-cpp "${extra_packages[@]}"
-  for candidate in "$env_dir/bin/"*-conda-linux-gnu-ar "$env_dir/bin/"*-apple-darwin*-ar; do
-    if [[ -x "$candidate" ]]; then
-      ln -sf "$candidate" "$env_dir/bin/ar"
-      break
-    fi
-  done
-  [[ -L "$env_dir/bin/ar" ]] || {
-    echo "Local GNU ar was not installed" >&2
-    return 1
-  }
+
+  export MAMBA_ROOT_PREFIX="$local_dir/mamba"
+  export CONDA_PKGS_DIRS="$local_dir/mamba/pkgs"
+
+  local candidate
+
+  "$bin_dir/micromamba" create -y -p "$env_dir" -c conda-forge \
+    --override-channels 'cmake>=4.1' make cxx-compiler gmp mpfr zlib boost-cpp
+
+  # Old makefiles need plain `ar`; macOS archive merges use libtool below.
+  if [[ "$platform" == osx-* ]]; then
+    [[ -x /usr/bin/ar && -x /usr/bin/libtool ]] || {
+      echo "macOS developer tools are required (/usr/bin/ar and /usr/bin/libtool)" >&2
+      return 1
+    }
+
+    ln -sf /usr/bin/ar "$env_dir/bin/ar"
+  else
+    for candidate in "$env_dir/bin/"*-conda-linux-gnu-ar; do
+      if [[ -x "$candidate" ]]; then
+        ln -sf "$candidate" "$env_dir/bin/ar"
+        break
+      fi
+    done
+
+    [[ -L "$env_dir/bin/ar" ]] || {
+      echo "Local GNU ar was not installed" >&2
+      return 1
+    }
+  fi
 }
 
 download_verified() {
-  curl -fsSL --retry 3 "$1" -o "$2"
+  curl -fsSL --retry 3 --retry-all-errors "$1" -o "$2"
   check_sha "$2" "$3"
 }
 
 check_sha() {
   local actual
+
   if command -v sha256sum >/dev/null; then
     actual=$(sha256sum "$1")
-    actual=${actual%% *}
   else
     actual=$(shasum -a 256 "$1")
-    actual=${actual%% *}
   fi
-  [[ "$actual" == "$2" ]] || {
+
+  [[ "${actual%% *}" == "$2" ]] || {
     echo "Checksum mismatch: $1" >&2
     exit 1
   }
 }
 
-build_gpmc() {
-  echo "Building GPMC"
-  local gpmc_src="$src_dir/gpmc"
-  extract "https://codeload.github.com/System-Verification-Lab/GPMC/tar.gz/$gpmc_rev" "$gpmc_src"
-  run cmake -S "$gpmc_src" -B "$gpmc_src/build" -DCMAKE_BUILD_TYPE=Release -DCMAKE_POLICY_VERSION_MINIMUM=3.5
-  run cmake --build "$gpmc_src/build" --parallel 2
-  install -m 755 "$gpmc_src/build/gpmc" "$bin_dir/gpmc"
+run() {
+  # Make defaults to g++, which bypasses Conda's Clang on macOS.
+  "$bin_dir/micromamba" run -p "$env_dir" env CXX="$env_dir/bin/c++" "$@"
 }
 
 extract() {
   mkdir -p "$2"
-  curl -fsSL --retry 3 "$1" | tar -xz -C "$2" --strip-components=1
+  curl -fsSL --retry 3 "$1" |
+    tar -xz -C "$2" --strip-components=1
 }
 
-run() { "$bin_dir/micromamba" run -p "$env_dir" "$@"; }
+edit() {
+  # The backup suffix makes in-place sed portable between GNU and BSD.
+  local file=$1
+  shift
+  sed -i.bak "$@" "$file"
+  rm "$file.bak"
+}
+
+build_gpmc() {
+  echo "Building GPMC"
+
+  local gpmc_src="$src_dir/gpmc"
+
+  extract \
+    "https://codeload.github.com/System-Verification-Lab/GPMC/tar.gz/$gpmc_rev" \
+    "$gpmc_src"
+
+  run cmake -S "$gpmc_src" -B "$gpmc_src/build" \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+
+  run cmake --build "$gpmc_src/build" --parallel 2
+  install -m 755 "$gpmc_src/build/gpmc" "$bin_dir/gpmc"
+}
 
 build_d4() {
   echo "Building d4 Max#SAT solver"
+
   local d4_src="$src_dir/d4"
-  extract "https://codeload.github.com/jm62300/d4/tar.gz/$d4_rev" "$d4_src"
-  # Upstream uses unbounded make -j; cap its builds at two jobs.
-  sed -i.bak 's/make -j/make -j2/g' "$d4_src/build.sh" "$d4_src/3rdParty/bipe/build.sh"
-  rm "$d4_src/build.sh.bak" "$d4_src/3rdParty/bipe/build.sh.bak"
-  (cd "$d4_src" && run bash ./build.sh)
-  run make -C "$d4_src/demo/maxT" -j2 "LIBS=-L$env_dir/lib -Wl,-rpath,$env_dir/lib ../../build/libd4.a -lboost_program_options -lz -lgmpxx -lgmp"
+
+  extract \
+    "https://codeload.github.com/jm62300/d4/tar.gz/$d4_rev" \
+    "$d4_src"
+
+  patch_d4 "$d4_src"
+
+  (
+    cd "$d4_src"
+    run bash ./build.sh
+  )
+
+  # Build the non-static maxT executable. Keep its conda libraries
+  # discoverable after installation via an embedded runtime search path.
+  run make -C "$d4_src/demo/maxT" -j2 \
+    "LIBS=-L$env_dir/lib -Wl,-rpath,$env_dir/lib ../../build/libd4.a -lboost_program_options -lz -lgmpxx -lgmp"
+
   install -m 755 "$d4_src/demo/maxT/build/maxT" "$bin_dir/maxT"
   ln -s maxT "$bin_dir/maxT_static"
 }
 
+patch_d4() {
+  local d4_src=$1
+  local file
+
+  # Upstream uses unbounded make -j; cap its builds at two jobs.
+  for file in "$d4_src/build.sh" "$d4_src/3rdParty/bipe/build.sh"; do
+    edit "$file" 's/make -j/make -j2/g'
+  done
+
+  # The nested MaxSharpSatResult calls getBit without a MaxT instance.
+  edit "$d4_src/src/methods/MaxT.hpp" \
+    's/inline u_int8_t getBit(/static inline u_int8_t getBit(/'
+
+  # Fix both Glucose copies: exclude Main.cc and separate PRIu64 literals.
+  for file in \
+    "$d4_src/3rdParty/glucose-3.0" \
+    "$d4_src/3rdParty/bipe/3rdParty/glucose-3.0"; do
+    edit "$file/mtl/template.mk" 's#\*/Main\.#%/Main.#g'
+    edit "$file/core/Main.cc" 's/"PRIu64/" PRIu64/g'
+  done
+
+  if [[ "$platform" == osx-* ]]; then
+    patch_d4_macos "$d4_src"
+  fi
+}
+
+patch_d4_macos() {
+  local d4_src=$1
+  local file
+
+  local outer_system="$d4_src/3rdParty/glucose-3.0/utils/System.cc"
+  local bipe_system="$d4_src/3rdParty/bipe/3rdParty/glucose-3.0/utils/System.cc"
+
+  echo "Applying d4 macOS portability patches"
+
+  # Replace glibc-private headers with portable equivalents.
+  while IFS= read -r file; do
+    edit "$file" \
+      -e 's#<bits/stdint-uintn.h>#<cstdint>#g' \
+      -e 's#<bits/types/clock_t.h>#<ctime>#g'
+  done < <(
+    grep -rl \
+      -e '<bits/stdint-uintn.h>' \
+      -e '<bits/types/clock_t.h>' \
+      "$d4_src/src"
+  )
+
+  # Correct bipe's namespace in its non-Linux memory implementation.
+  edit "$bipe_system" 's/double Glucose_bipe::memUsed/double bipe::Glucose::memUsed/g'
+
+  # Both Glucose copies lack memUsedPeak() in their Apple branches.
+  cat >>"$outer_system" <<'PATCH_EOF'
+
+#if defined(__APPLE__)
+double Glucose::memUsedPeak(void) { return memUsed(); }
+#endif
+PATCH_EOF
+
+  cat >>"$bipe_system" <<'PATCH_EOF'
+
+#if defined(__APPLE__)
+double bipe::Glucose::memUsedPeak(void) { return memUsed(); }
+#endif
+PATCH_EOF
+
+  # Bundled PaToH is Linux/x86-64 only. maxT uses BRANCHING_CLASSIC, so
+  # stub out the unused partitioner and omit its archive on macOS.
+  cat >"$d4_src/src/partitioner/PartitionerPatoh.cpp" <<'PATCH_EOF'
+#include "PartitionerPatoh.hpp"
+#include "src/exceptions/OptionException.hpp"
+
+namespace d4 {
+PartitionerPatoh::PartitionerPatoh(const InfoHyperGraph &, std::ostream &)
+    : m_xpins(nullptr),
+      m_pins(nullptr),
+      m_cwghts(nullptr),
+      m_partvec(nullptr),
+      m_partweights(nullptr) {}
+
+PartitionerPatoh::~PartitionerPatoh() = default;
+
+void PartitionerPatoh::computePartition(HyperGraph &, Level, std::vector<int> &) {
+  throw OptionException("PaToH is unavailable in the macOS local solver build.",
+                        __FILE__, __LINE__);
+}
+}  // namespace d4
+PATCH_EOF
+
+  # Do not advertise/link the incompatible PaToH archive through CMake.
+  edit "$d4_src/CMakeLists.txt" \
+    's# \${CMAKE_SOURCE_DIR}/3rdParty/patoh/libpatoh\.a##g'
+
+  # Merge Mach-O archives with Apple's libtool instead of GNU ar; omit PaToH.
+  edit "$d4_src/build.sh" \
+    's#^ar cqT libd4\.a .*#/usr/bin/libtool -static -o libd4.a libd4tmp.a ../3rdParty/flowCutter/libflowCutter.a ../3rdParty/glucose-3.0/core/lib_glucose.a ../3rdParty/bipe/build/libbipe.a#'
+
+  edit "$d4_src/3rdParty/bipe/build.sh" \
+    's#^ar cqT libbipe\.a .*#/usr/bin/libtool -static -o libbipe.a libbipetmp.a ../3rdParty/glucose-3.0/core/libglucose.a#'
+
+  # Make flowCutter respect the selected Conda compiler.
+  edit "$d4_src/3rdParty/flowCutter/Makefile" 's/^CC := g++$/CC := $(CXX)/'
+}
+
 install_ganak() {
   echo "Installing Ganak"
+
   local archive="$local_dir/ganak.tar.gz"
-  download_verified "https://github.com/meelgroup/ganak/releases/download/release/$ganak_version/ganak-$ganak_version-$ganak_platform.tar.gz" "$archive" "$ganak_sha"
+
+  download_verified \
+    "https://github.com/meelgroup/ganak/releases/download/release/$ganak_version/ganak-$ganak_version-$ganak_platform.tar.gz" \
+    "$archive" \
+    "$ganak_sha"
+
   tar -xzf "$archive" -C "$bin_dir" ganak
   chmod +x "$bin_dir/ganak"
 }
 
+verify_install() {
+  local solver description
+
+  for solver in gpmc maxT ganak; do
+    [[ -x "$bin_dir/$solver" ]] || {
+      echo "Installed solver is missing or not executable: $bin_dir/$solver" >&2
+      return 1
+    }
+  done
+
+  # These also catch missing dynamic libraries at process startup.
+  "$bin_dir/maxT" --help >/dev/null
+  "$bin_dir/ganak" --version >/dev/null
+
+  # Require native Apple Silicon binaries, without relying on Rosetta.
+  if [[ "$platform" == osx-arm64 ]] && command -v file >/dev/null; then
+    for solver in gpmc maxT ganak; do
+      description=$(file "$bin_dir/$solver")
+      [[ "$description" == *arm64* ]] || {
+        echo "Expected an arm64 executable, got: $description" >&2
+        return 1
+      }
+    done
+  fi
+}
+
 cleanup() {
   local status=$?
+
   if ((status == 0)); then
     rm -f "$local_dir/ganak.tar.gz"
   else
