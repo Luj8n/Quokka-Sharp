@@ -1,18 +1,7 @@
 #!/usr/bin/env bash
 # Install GPMC, Ganak, and d4 maxT locally, without modifying the system.
-# Files installed by this script stay within this repository.
-#
-# Linux uses the upstream d4 build largely as-is. On macOS we apply a small
-# portability patch set to the pinned d4 revision:
-#   - fix Glucose PRIu64 tokenization for modern Clang
-#   - fix GNU make filter-out patterns that accidentally include Main.cc
-#   - replace glibc-private <bits/...> headers with standard C++ headers
-#   - fix the Apple namespace in bipe's vendored Glucose
-#   - disable PaToH on macOS, because the bundled libpatoh.a is Linux/x86-64
-#     and the maxT demo built here explicitly uses classic branching
-#
-# GPMC and maxT use local libraries plus the OS's standard C library;
-# they are not fully static.
+# Build tools, libraries, and patched sources stay in .solvers.
+# GPMC and maxT use local libraries plus the OS's C library (not fully static).
 set -euo pipefail
 
 root=$(cd "$(dirname "$0")/.." && pwd)
@@ -84,14 +73,9 @@ prepare_install() {
     return 1
   fi
 
-  mkdir -p \
-    "$bin_dir" \
-    "$src_dir" \
-    "$local_dir/cache" \
-    "$local_dir/tmp"
-
   export XDG_CACHE_HOME="$local_dir/cache"
   export TMPDIR="$local_dir/tmp"
+  mkdir -p "$bin_dir" "$src_dir" "$XDG_CACHE_HOME" "$TMPDIR"
 }
 
 install_toolchain() {
@@ -109,28 +93,13 @@ install_toolchain() {
 
   local candidate
 
-  "$bin_dir/micromamba" create \
-    -y \
-    -p "$env_dir" \
-    -c conda-forge \
-    --override-channels \
-    'cmake>=4.1' \
-    make \
-    cxx-compiler \
-    gmp \
-    mpfr \
-    zlib \
-    boost-cpp
+  "$bin_dir/micromamba" create -y -p "$env_dir" -c conda-forge \
+    --override-channels 'cmake>=4.1' make cxx-compiler gmp mpfr zlib boost-cpp
 
-  # Give the old makefiles a plain `ar` command.
-  #
-  # On macOS only ordinary archive creation is needed because the nested
-  # library merges below are patched to use Apple's `libtool -static`.
+  # Old makefiles need plain `ar`; macOS archive merges use libtool below.
   if [[ "$platform" == osx-* ]]; then
     [[ -x /usr/bin/ar && -x /usr/bin/libtool ]] || {
-      echo \
-        "macOS developer tools are required (/usr/bin/ar and /usr/bin/libtool)" \
-        >&2
+      echo "macOS developer tools are required (/usr/bin/ar and /usr/bin/libtool)" >&2
       return 1
     }
 
@@ -151,7 +120,7 @@ install_toolchain() {
 }
 
 download_verified() {
-  curl -fsSL --retry 3 "$1" -o "$2"
+  curl -fsSL --retry 3 --retry-all-errors "$1" -o "$2"
   check_sha "$2" "$3"
 }
 
@@ -160,13 +129,11 @@ check_sha() {
 
   if command -v sha256sum >/dev/null; then
     actual=$(sha256sum "$1")
-    actual=${actual%% *}
   else
     actual=$(shasum -a 256 "$1")
-    actual=${actual%% *}
   fi
 
-  [[ "$actual" == "$2" ]] || {
+  [[ "${actual%% *}" == "$2" ]] || {
     echo "Checksum mismatch: $1" >&2
     exit 1
   }
@@ -183,6 +150,14 @@ extract() {
     tar -xz -C "$2" --strip-components=1
 }
 
+edit() {
+  # The backup suffix makes in-place sed portable between GNU and BSD.
+  local file=$1
+  shift
+  sed -i.bak "$@" "$file"
+  rm "$file.bak"
+}
+
 build_gpmc() {
   echo "Building GPMC"
 
@@ -192,20 +167,12 @@ build_gpmc() {
     "https://codeload.github.com/System-Verification-Lab/GPMC/tar.gz/$gpmc_rev" \
     "$gpmc_src"
 
-  run cmake \
-    -S "$gpmc_src" \
-    -B "$gpmc_src/build" \
+  run cmake -S "$gpmc_src" -B "$gpmc_src/build" \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_POLICY_VERSION_MINIMUM=3.5
 
-  run cmake \
-    --build "$gpmc_src/build" \
-    --parallel 2
-
-  install \
-    -m 755 \
-    "$gpmc_src/build/gpmc" \
-    "$bin_dir/gpmc"
+  run cmake --build "$gpmc_src/build" --parallel 2
+  install -m 755 "$gpmc_src/build/gpmc" "$bin_dir/gpmc"
 }
 
 build_d4() {
@@ -219,16 +186,6 @@ build_d4() {
 
   patch_d4 "$d4_src"
 
-  # Upstream uses unbounded make -j; cap its builds at two jobs.
-  sed -i.bak \
-    's/make -j/make -j2/g' \
-    "$d4_src/build.sh" \
-    "$d4_src/3rdParty/bipe/build.sh"
-
-  rm \
-    "$d4_src/build.sh.bak" \
-    "$d4_src/3rdParty/bipe/build.sh.bak"
-
   (
     cd "$d4_src"
     run bash ./build.sh
@@ -236,16 +193,10 @@ build_d4() {
 
   # Build the non-static maxT executable. Keep its conda libraries
   # discoverable after installation via an embedded runtime search path.
-  run make \
-    -C "$d4_src/demo/maxT" \
-    -j2 \
+  run make -C "$d4_src/demo/maxT" -j2 \
     "LIBS=-L$env_dir/lib -Wl,-rpath,$env_dir/lib ../../build/libd4.a -lboost_program_options -lz -lgmpxx -lgmp"
 
-  install \
-    -m 755 \
-    "$d4_src/demo/maxT/build/maxT" \
-    "$bin_dir/maxT"
-
+  install -m 755 "$d4_src/demo/maxT/build/maxT" "$bin_dir/maxT"
   ln -s maxT "$bin_dir/maxT_static"
 }
 
@@ -253,41 +204,21 @@ patch_d4() {
   local d4_src=$1
   local file
 
-  # The nested MaxSharpSatResult calls getBit without a MaxT instance.
-  sed -i.bak \
-    's/inline u_int8_t getBit(/static inline u_int8_t getBit(/' \
-    "$d4_src/src/methods/MaxT.hpp"
-  rm "$d4_src/src/methods/MaxT.hpp.bak"
-
-  # GNU make uses '%' rather than '*' as the wildcard in filter/filter-out.
-  # Without this correction Main.cc is accidentally included in the Glucose
-  # library prerequisites.
-  for file in \
-    "$d4_src/3rdParty/glucose-3.0/mtl/template.mk" \
-    "$d4_src/3rdParty/bipe/3rdParty/glucose-3.0/mtl/template.mk"; do
-
-    sed -i.bak \
-      's#\*/Main\.#%/Main.#g' \
-      "$file"
-
-    rm "$file.bak"
+  # Upstream uses unbounded make -j; cap its builds at two jobs.
+  for file in "$d4_src/build.sh" "$d4_src/3rdParty/bipe/build.sh"; do
+    edit "$file" 's/make -j/make -j2/g'
   done
 
-  # Old Glucose concatenates PRIu64 directly onto string literals, e.g.
-  #
-  #     "%"PRIu64
-  #
-  # Modern Clang interprets that as a C++11 user-defined literal.
-  # The whitespace is standard and harmless on GCC as well.
+  # The nested MaxSharpSatResult calls getBit without a MaxT instance.
+  edit "$d4_src/src/methods/MaxT.hpp" \
+    's/inline u_int8_t getBit(/static inline u_int8_t getBit(/'
+
+  # Fix both Glucose copies: exclude Main.cc and separate PRIu64 literals.
   for file in \
-    "$d4_src/3rdParty/glucose-3.0/core/Main.cc" \
-    "$d4_src/3rdParty/bipe/3rdParty/glucose-3.0/core/Main.cc"; do
-
-    sed -i.bak \
-      's/"PRIu64/" PRIu64/g' \
-      "$file"
-
-    rm "$file.bak"
+    "$d4_src/3rdParty/glucose-3.0" \
+    "$d4_src/3rdParty/bipe/3rdParty/glucose-3.0"; do
+    edit "$file/mtl/template.mk" 's#\*/Main\.#%/Main.#g'
+    edit "$file/core/Main.cc" 's/"PRIu64/" PRIu64/g'
   done
 
   if [[ "$platform" == osx-* ]]; then
@@ -304,15 +235,11 @@ patch_d4_macos() {
 
   echo "Applying d4 macOS portability patches"
 
-  # The pinned d4 revision contains several glibc-private headers.
-  # Replace all occurrences under src/ with their portable equivalents.
+  # Replace glibc-private headers with portable equivalents.
   while IFS= read -r file; do
-    sed -i.bak \
+    edit "$file" \
       -e 's#<bits/stdint-uintn.h>#<cstdint>#g' \
-      -e 's#<bits/types/clock_t.h>#<ctime>#g' \
-      "$file"
-
-    rm "$file.bak"
+      -e 's#<bits/types/clock_t.h>#<ctime>#g'
   done < <(
     grep -rl \
       -e '<bits/stdint-uintn.h>' \
@@ -320,24 +247,18 @@ patch_d4_macos() {
       "$d4_src/src"
   )
 
-  # bipe's vendored Glucose uses the wrong namespace in its non-Linux
-  # memory implementation. Its declaration is bipe::Glucose::memUsed().
-  sed -i.bak \
-    's/double Glucose_bipe::memUsed/double bipe::Glucose::memUsed/g' \
-    "$bipe_system"
+  # Correct bipe's namespace in its non-Linux memory implementation.
+  edit "$bipe_system" 's/double Glucose_bipe::memUsed/double bipe::Glucose::memUsed/g'
 
-  rm "$bipe_system.bak"
-
-  # Both Glucose copies declare memUsedPeak(), but the pinned Apple branches
-  # don't define it. Supplying it keeps the vendored libraries complete.
-  cat >> "$outer_system" <<'PATCH_EOF'
+  # Both Glucose copies lack memUsedPeak() in their Apple branches.
+  cat >>"$outer_system" <<'PATCH_EOF'
 
 #if defined(__APPLE__)
 double Glucose::memUsedPeak(void) { return memUsed(); }
 #endif
 PATCH_EOF
 
-  cat >> "$bipe_system" <<'PATCH_EOF'
+  cat >>"$bipe_system" <<'PATCH_EOF'
 
 #if defined(__APPLE__)
 double bipe::Glucose::memUsedPeak(void) { return memUsed(); }
@@ -346,7 +267,7 @@ PATCH_EOF
 
   # Bundled PaToH is Linux/x86-64 only. maxT uses BRANCHING_CLASSIC, so
   # stub out the unused partitioner and omit its archive on macOS.
-  cat > "$d4_src/src/partitioner/PartitionerPatoh.cpp" <<'PATCH_EOF'
+  cat >"$d4_src/src/partitioner/PartitionerPatoh.cpp" <<'PATCH_EOF'
 #include "PartitionerPatoh.hpp"
 #include "src/exceptions/OptionException.hpp"
 
@@ -368,35 +289,18 @@ void PartitionerPatoh::computePartition(HyperGraph &, Level, std::vector<int> &)
 PATCH_EOF
 
   # Do not advertise/link the incompatible PaToH archive through CMake.
-  sed -i.bak \
-    's# \${CMAKE_SOURCE_DIR}/3rdParty/patoh/libpatoh\.a##g' \
-    "$d4_src/CMakeLists.txt"
+  edit "$d4_src/CMakeLists.txt" \
+    's# \${CMAKE_SOURCE_DIR}/3rdParty/patoh/libpatoh\.a##g'
 
-  rm "$d4_src/CMakeLists.txt.bak"
+  # Merge Mach-O archives with Apple's libtool instead of GNU ar; omit PaToH.
+  edit "$d4_src/build.sh" \
+    's#^ar cqT libd4\.a .*#/usr/bin/libtool -static -o libd4.a libd4tmp.a ../3rdParty/flowCutter/libflowCutter.a ../3rdParty/glucose-3.0/core/lib_glucose.a ../3rdParty/bipe/build/libbipe.a#'
 
-  # d4 and bipe flatten nested static archives using GNU ar thin/MRI
-  # extensions. For Mach-O use Apple's native archive merger instead.
-  #
-  # This also deliberately leaves PaToH out of the final libd4.a.
-  sed -i.bak \
-    's#^ar cqT libd4\.a .*#/usr/bin/libtool -static -o libd4.a libd4tmp.a ../3rdParty/flowCutter/libflowCutter.a ../3rdParty/glucose-3.0/core/lib_glucose.a ../3rdParty/bipe/build/libbipe.a#' \
-    "$d4_src/build.sh"
+  edit "$d4_src/3rdParty/bipe/build.sh" \
+    's#^ar cqT libbipe\.a .*#/usr/bin/libtool -static -o libbipe.a libbipetmp.a ../3rdParty/glucose-3.0/core/libglucose.a#'
 
-  rm "$d4_src/build.sh.bak"
-
-  sed -i.bak \
-    's#^ar cqT libbipe\.a .*#/usr/bin/libtool -static -o libbipe.a libbipetmp.a ../3rdParty/glucose-3.0/core/libglucose.a#' \
-    "$d4_src/3rdParty/bipe/build.sh"
-
-  rm "$d4_src/3rdParty/bipe/build.sh.bak"
-
-  # flowCutter's Makefile hard-codes g++, despite the surrounding build
-  # running inside the conda compiler environment. Use make's CXX instead.
-  sed -i.bak \
-    's/^CC := g++$/CC := $(CXX)/' \
-    "$d4_src/3rdParty/flowCutter/Makefile"
-
-  rm "$d4_src/3rdParty/flowCutter/Makefile.bak"
+  # Make flowCutter respect the selected Conda compiler.
+  edit "$d4_src/3rdParty/flowCutter/Makefile" 's/^CC := g++$/CC := $(CXX)/'
 }
 
 install_ganak() {
@@ -409,22 +313,16 @@ install_ganak() {
     "$archive" \
     "$ganak_sha"
 
-  tar \
-    -xzf "$archive" \
-    -C "$bin_dir" \
-    ganak
-
+  tar -xzf "$archive" -C "$bin_dir" ganak
   chmod +x "$bin_dir/ganak"
 }
 
 verify_install() {
-  local solver
+  local solver description
 
   for solver in gpmc maxT ganak; do
     [[ -x "$bin_dir/$solver" ]] || {
-      echo \
-        "Installed solver is missing or not executable: $bin_dir/$solver" \
-        >&2
+      echo "Installed solver is missing or not executable: $bin_dir/$solver" >&2
       return 1
     }
   done
@@ -433,21 +331,14 @@ verify_install() {
   "$bin_dir/maxT" --help >/dev/null
   "$bin_dir/ganak" --version >/dev/null
 
-  # On Apple Silicon verify that the resulting executables actually contain
-  # arm64 code rather than silently relying on Rosetta/x86 binaries.
+  # Require native Apple Silicon binaries, without relying on Rosetta.
   if [[ "$platform" == osx-arm64 ]] && command -v file >/dev/null; then
     for solver in gpmc maxT ganak; do
-      local description
       description=$(file "$bin_dir/$solver")
-
-      case "$description" in
-      *arm64*)
-        ;;
-      *)
+      [[ "$description" == *arm64* ]] || {
         echo "Expected an arm64 executable, got: $description" >&2
         return 1
-        ;;
-      esac
+      }
     done
   fi
 }
@@ -458,10 +349,7 @@ cleanup() {
   if ((status == 0)); then
     rm -f "$local_dir/ganak.tar.gz"
   else
-    echo \
-      "Setup failed; removing the incomplete .solvers directory" \
-      >&2
-
+    echo "Setup failed; removing the incomplete .solvers directory" >&2
     rm -rf "$local_dir"
   fi
 }
