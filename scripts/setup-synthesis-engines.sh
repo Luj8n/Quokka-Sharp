@@ -44,6 +44,8 @@ if [[ $engine == all || $engine == mitms ]]; then
     tar -xf lapackpp.tar.gz
     (
       cd lapackpp-2.5.4
+      # The redundant declaration conflicts with macOS's system header.
+      sed -i.bak '/^extern "C" double drand48(void) throw ();$/d' src/genmd.cc
       ./configure --prefix="$tools/lapack-local" --disable-shared --enable-static \
         CFLAGS='-O2 -std=gnu89' CXXFLAGS='-O2 -std=c++11' \
         --with-blas="${blas_flags[*]}" --with-lapack="${blas_flags[*]}"
