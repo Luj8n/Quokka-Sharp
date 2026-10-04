@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Usage: bash scripts/setup-synthesis-engines.sh [all|mitms|synthetiq]
+# Usage: bash scripts/setup-synthesis-engines.sh [all|quokka-upstream|mitms|synthetiq]
 # Prerequisites: git, curl, tar, shasum; Rust/Cargo for Synthetiq;
 # C++ compiler, make, gfortran, BLAS and LAPACK for MITMS.
 # macOS: brew install gcc openblas
@@ -7,7 +7,7 @@ set -euo pipefail
 
 engine=${1:-all}
 case "$engine" in
-all | mitms | synthetiq) ;;
+all | quokka-upstream | mitms | synthetiq) ;;
 *)
   echo "Unknown engine: $engine" >&2
   exit 1
@@ -30,6 +30,10 @@ checkout() {
     exit 1
   }
 }
+
+if [[ $engine == all || $engine == quokka-upstream ]]; then
+  checkout quokka-upstream System-Verification-Lab/Quokka-Sharp 8a7cdb6555d6bcdf2ff3e7adecbc4f232a6417b4
+fi
 
 if [[ $engine == all || $engine == mitms ]]; then
   checkout mitms ethroz/mitms c2256f9d1c34348d71487417be3972d556b28b47

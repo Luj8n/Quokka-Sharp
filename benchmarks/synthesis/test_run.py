@@ -75,6 +75,16 @@ def test_quokka_approximate(target):
     assert_circuit(qasm2.loads(output), target, 0.99)
 
 
+def test_quokka_upstream_exact(target):
+    output = run_engine("quokka-upstream", target)
+    assert_circuit(qasm2.loads(output), target, 1.0)
+
+
+def test_quokka_upstream_approximate(target):
+    output = run_engine("quokka-upstream", target, "--fidelity", ".99")
+    assert_circuit(qasm2.loads(output), target, 0.99)
+
+
 def test_qiskit(target):
     output = run_engine("qiskit", target, "--approximation-degree", ".99")
     assert_circuit(qasm2.loads(output), target, 0.99)

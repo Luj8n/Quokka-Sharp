@@ -17,6 +17,12 @@ python benchmarks/synthesis/run.py quokka benchmarks/synthesis/inputs/cz.qasm
 # Quokka# - approximate
 python benchmarks/synthesis/run.py quokka benchmarks/synthesis/inputs/cz.qasm --fidelity 0.99
 
+# Upstream Quokka# - exact
+python benchmarks/synthesis/run.py quokka-upstream benchmarks/synthesis/inputs/cz.qasm
+
+# Upstream Quokka# - approximate
+python benchmarks/synthesis/run.py quokka-upstream benchmarks/synthesis/inputs/cz.qasm --fidelity 0.99
+
 # MITMS - exact
 python benchmarks/synthesis/run.py mitms benchmarks/synthesis/inputs/cz.mitms
 

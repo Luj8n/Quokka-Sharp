@@ -3,7 +3,7 @@ import sys
 from math import isfinite
 from pathlib import Path
 
-from engines.engine import Engine
+from engines.engine import TOOLS, Engine
 
 
 def probability(value: str) -> float:
@@ -25,7 +25,9 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         description="""Run one synthesis engine. Original output goes to stdout, timing goes to stderr."""
     )
     engines = parser.add_subparsers(dest="engine", required=True)
-    quokka = engines.add_parser("quokka", help="QASM input. Exact or approximate")
+    quokka = engines.add_parser(
+        "quokka", aliases=["quokka-upstream"], help="QASM input. Exact or approximate"
+    )
     quokka.add_argument("input", type=Path)
     quokka.add_argument(
         "--fidelity",
@@ -77,7 +79,17 @@ def main() -> None:
     args = parse_args()
     engine: Engine
     try:
-        if args.engine == "quokka":
+        if args.engine in {"quokka", "quokka-upstream"}:
+            source = (
+                TOOLS / "quokka-upstream" / "quokka_sharp"
+                if args.engine == "quokka-upstream"
+                else Path(__file__).resolve().parents[2] / "quokka_sharp"
+            )
+            if not (source / "quokka_sharp" / "__init__.py").is_file():
+                raise FileNotFoundError(
+                    f"Quokka source missing: {source}. Run scripts/setup-synthesis-engines.sh."
+                )
+            sys.path.insert(0, str(source))
             from engines.quokka import QuokkaEngine
 
             engine = QuokkaEngine(fidelity=args.fidelity)
