@@ -35,6 +35,17 @@ python benchmarks/synthesis/run.py synthetiq benchmarks/synthesis/inputs/cz.txt 
 
 Use `python benchmarks/synthesis/run.py {engine} --help` for the available options.
 
+Run all exact or approximate engines:
+
+```bash
+python benchmarks/synthesis/run_exact.py
+python benchmarks/synthesis/run_approximate.py
+```
+
+Results go to `benchmarks/synthesis/results/{timestamp}/`.
+
+Peak memory usage is measured with `/usr/bin/time`.
+
 ---
 
 ## Exact synthesis
