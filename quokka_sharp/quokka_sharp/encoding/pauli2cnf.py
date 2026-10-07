@@ -1196,14 +1196,14 @@ class pauli2cnf:
                         cnf.add_clause([-cnf.get_syn_var_past_layer(Name='csqrtx', bit=[c, t]),
                                         -cnf.get_syn_var_past_layer(Name='t', bit=c, past=2),
                                         -sdg[c]])
-                    #H CZ H =CX & HCXH=CZ, so HCZh, HCXH is not allowed in 3 layers
+                    #H CZ  H =CX & HCXH=CZ, so HCZh, HCXH is not allowed in 3 layers
                     if ENABLE_H and ENABLE_CZ and ENABLE_CX and cnf.syn_gate_layer >= 3:        
                         cnf.add_clause([
                             -cnf.get_syn_var_past_layer(
                             Name='cz', bit=[min(c, t), max(c, t)]
                                                             ),
                                 -cnf.get_syn_var_past_layer(
-                                    Name='h', bit=c, past=2
+                                    Name='h', bit=t, past=2
                                     ),
                                 -hg[c]])
                         cnf.add_clause([
@@ -1211,7 +1211,7 @@ class pauli2cnf:
                             Name='cx', bit=[min(c, t), max(c, t)]
                                                             ),
                                 -cnf.get_syn_var_past_layer(
-                                    Name='h', bit=c, past=2
+                                    Name='h', bit=t, past=2
                                     ),
                                 -hg[c]])
 
