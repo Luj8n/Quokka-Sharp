@@ -5,13 +5,11 @@ from time import perf_counter
 from qiskit import QuantumCircuit, qasm2, transpile
 from qiskit.quantum_info import Operator
 
-from .engine import BASIS_GATES, Engine
+from .engine import TARGET_GATES, Engine
 
 
 @dataclass
 class QiskitEngine(Engine):
-    """One heuristic transpilation; approximation_degree is not a fidelity bound."""
-
     approximation_degree: float = 0.9
     optimization_level: int = 3
 
@@ -23,7 +21,7 @@ class QiskitEngine(Engine):
         start = perf_counter()
         result = transpile(
             circuit,
-            basis_gates=BASIS_GATES,
+            basis_gates=TARGET_GATES,
             optimization_level=self.optimization_level,
             approximation_degree=self.approximation_degree,
             seed_transpiler=0,

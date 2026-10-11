@@ -1,7 +1,6 @@
 import argparse
 from pathlib import Path
 
-import numpy as np
 from qiskit import qasm2
 from qiskit.quantum_info import Operator
 
@@ -9,7 +8,7 @@ from qiskit.quantum_info import Operator
 def convert(source: Path, output: Path) -> None:
     circuit = qasm2.load(source)
     # Order: |q[n-1] ... q[0]>.
-    unitary = np.asarray(Operator(circuit), dtype=np.complex128)
+    unitary = Operator(circuit).data
     matrix = "\n".join(
         " ".join(f"({z.real:.17g},{z.imag:.17g})" for z in row) for row in unitary
     )

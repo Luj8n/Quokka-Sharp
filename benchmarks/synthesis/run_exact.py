@@ -4,9 +4,9 @@ from batch import run_batch
 
 INPUTS = ["csx"]
 RUNS = [
-    ("quokka-exact", "quokka", ".qasm", []),
-    ("quokka-upstream-exact", "quokka-upstream", ".qasm", []),
-    ("mitms", "mitms", ".mitms", ["--max-seq-length", "6", "--timeout", "3600"]),
+    ("quokka-exact", "quokka", ".qasm", ["--timeout", "3600"]),
+    # ("quokka-upstream-exact", "quokka-upstream", ".qasm", ["--timeout", "3600"]),
+    ("mitms", "mitms", ".mitms", ["--max-depth", "10", "--timeout", "3600"]),
 ]
 
 

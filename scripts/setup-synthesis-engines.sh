@@ -66,8 +66,6 @@ fi
 if [[ $engine == all || $engine == synthetiq ]]; then
   checkout synthetiq eth-sri/synthetiq aaddd5cfbd79a1e11a26bca4ee33d580dc6ddc40
   cargo build --manifest-path synthetiq/Cargo.toml --locked --release --bin synthetiq -j2
-  mkdir -p synthetiq/bin
-  cp synthetiq/target/release/synthetiq synthetiq/bin/rust
 fi
 
 echo "Ready: $engine"

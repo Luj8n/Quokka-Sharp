@@ -1,6 +1,5 @@
 import argparse
 import sys
-from math import isfinite
 from pathlib import Path
 
 from engines.engine import TOOLS, Engine
@@ -13,10 +12,10 @@ def probability(value: str) -> float:
     return number
 
 
-def positive_seconds(value: str) -> float:
-    number = float(value)
-    if not isfinite(number) or number <= 0:
-        raise argparse.ArgumentTypeError("must be positive and finite")
+def positive_seconds(value: str) -> int:
+    number = int(value)
+    if number <= 0:
+        raise argparse.ArgumentTypeError("must be a positive integer")
     return number
 
 
@@ -42,22 +41,28 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     qiskit.add_argument(
         "--approximation-degree",
         type=probability,
-        default=0.99,
+        default=0.9,
         help="Qiskit's heuristic dial, not a fidelity bound (default: .9)",
     )
     qiskit.add_argument("--optimization-level", type=int, choices=range(4), default=3)
-    mitms = engines.add_parser("mitms", help="Native searches file input. Exact")
+    mitms = engines.add_parser(
+        "mitms", help="Native file format input. Exact or approximate"
+    )
     mitms.add_argument("input", type=Path)
+    mitms.add_argument(
+        "--approximate",
+        action="store_true",
+        help="Search for improving approximations up to the depth limit, using native default precision",
+    )
     mitms.add_argument(
         "--label", default="target", help="Circuit label in the input file"
     )
     mitms.add_argument(
-        "--max-seq-length",
+        "--max-depth",
         type=int,
-        default=3,
-        help="Native sequence limit",
+        default=4,
+        help="Maximum searched depth; even integer >= 2 (default: %(default)s)",
     )
-    mitms.add_argument("--timeout", type=positive_seconds, default=60)
     synthetiq = engines.add_parser(
         "synthetiq", help="Native matrix file input. Approximate, heuristic"
     )
@@ -68,10 +73,16 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default=0.01,
         help="Native distance threshold (default: .01)",
     )
-    synthetiq.add_argument("--timeout", type=positive_seconds, default=60)
+    for engine in (quokka, mitms, synthetiq):
+        engine.add_argument(
+            "--timeout",
+            type=positive_seconds,
+            default=None if engine is quokka else 60,
+            help="Time limit in positive whole seconds",
+        )
     args = parser.parse_args(argv)
-    if args.engine == "mitms" and args.max_seq_length < 2:
-        parser.error("--max-seq-length must be at least 2")
+    if args.engine == "mitms" and (args.max_depth < 2 or args.max_depth % 2):
+        parser.error("--max-depth must be an even integer of at least 2")
     return args
 
 
@@ -92,7 +103,7 @@ def main() -> None:
             sys.path.insert(0, str(source))
             from engines.quokka import QuokkaEngine
 
-            engine = QuokkaEngine(fidelity=args.fidelity)
+            engine = QuokkaEngine(fidelity=args.fidelity, timeout=args.timeout)
         elif args.engine == "qiskit":
             from engines.qiskit import QiskitEngine
 
@@ -105,8 +116,9 @@ def main() -> None:
 
             engine = MitmsEngine(
                 label=args.label,
-                max_seq_length=args.max_seq_length,
+                max_depth=args.max_depth,
                 timeout=args.timeout,
+                approximate=args.approximate,
             )
         else:
             from engines.synthetiq import SynthetiqEngine

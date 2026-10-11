@@ -2,7 +2,7 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
-BASIS_GATES = ["h", "s", "sdg", "t", "tdg", "cx"]
+TARGET_GATES = ["h", "s", "sdg", "t", "tdg", "cx"]
 TOOLS = Path(__file__).resolve().parents[3] / ".solvers" / "synthesis"
 
 
@@ -18,7 +18,8 @@ def run_external(command: list[str], directory: Path, timeout: float) -> str:
     if process.returncode:
         raise RuntimeError(
             f"{Path(command[0]).name} exited with {process.returncode}:\n"
-            + (process.stdout + process.stderr)[-3000:]
+            + process.stdout
+            + process.stderr
         )
     return process.stdout
 

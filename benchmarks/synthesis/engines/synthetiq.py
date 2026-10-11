@@ -3,14 +3,14 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from time import perf_counter
 
-from .engine import BASIS_GATES, TOOLS, Engine, run_external
+from .engine import TARGET_GATES, TOOLS, Engine, run_external
 
 
 @dataclass
 class SynthetiqEngine(Engine):
     root: Path = TOOLS / "synthetiq"
     epsilon: float = 0.01
-    timeout: float = 60
+    timeout: int = 60
 
     def run(self, target: Path) -> str:
         with TemporaryDirectory() as temporary:
@@ -18,7 +18,7 @@ class SynthetiqEngine(Engine):
             start = perf_counter()
             output = run_external(
                 [
-                    str(self.root / "bin/rust"),
+                    str(self.root / "target/release/synthetiq"),
                     str(target.resolve()),
                     "--absolute-input",
                     "--output",
@@ -36,10 +36,10 @@ class SynthetiqEngine(Engine):
                     "--epsilon",
                     str(self.epsilon),
                     "--depth-gates",
-                    ",".join(BASIS_GATES),
-                    "--qubit_independence",
+                    ",".join(TARGET_GATES),
                 ],
                 directory,
+                # Let synthetiq internally timeout for 5s seconds.
                 self.timeout + 5,
             )
             self.elapsed_seconds = perf_counter() - start

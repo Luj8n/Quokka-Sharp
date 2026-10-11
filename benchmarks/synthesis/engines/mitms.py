@@ -11,8 +11,9 @@ from .engine import TOOLS, Engine, run_external
 class MitmsEngine(Engine):
     binary: Path = TOOLS / "mitms" / "build" / "mitms_original"
     label: str = "target"
-    max_seq_length: int = 3
-    timeout: float = 60
+    max_depth: int = 4
+    timeout: int = 60
+    approximate: bool = False
 
     def run(self, target: Path) -> str:
         with TemporaryDirectory() as temporary:
@@ -25,15 +26,15 @@ class MitmsEngine(Engine):
                     "-no-serialize",
                     "-threads",
                     "1",
-                    "-early-stop",
+                    "-approximate" if self.approximate else "-early-stop",
                     "-max-seq-length",
-                    str(self.max_seq_length),
+                    str(self.max_depth // 2 + 1),
                     self.label,
                 ],
                 directory,
                 self.timeout,
             )
             self.elapsed_seconds = perf_counter() - start
-        if "Cost" not in output:
+        if ("Distance " if self.approximate else "Cost ") not in output:
             raise RuntimeError(f"MITMS found no circuit. Original output:\n{output}")
         return output

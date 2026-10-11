@@ -64,9 +64,22 @@ Here these projects are compared:
 - Original code: https://github.com/meamy/mitms
 - The fork used: https://github.com/ethroz/mitms
 
-- Depth optimal, within the configured search limit
+- Depth optimal
 - Clifford+T gate set
 - Takes its own circuit format as input (`.mitms` files here)
+
+The supported gates for `.mitms`:
+
+- `I` - identity
+- `H` - Hadamard
+- `X`, `Y`, `Z` - Pauli gates
+- `S` - phase gate
+- `S*` - inverse phase gate (S†)
+- `T` - T gate
+- `T*` - inverse T gate (T†)
+- `C(n)` - control for the gate on qubit `n` in the same column. Note: qubits are numbered from 1
+
+Each row represents a qubit, and each column represents a layer.
 
 The fork's `mitms_original` executable is used. It has bug fixes and an option to stop once a depth with solutions is found compared to the upstream version.
 
@@ -77,6 +90,13 @@ The fork's `mitms_original` executable is used. It has bug fixes and an option t
 - Depth optimal
 - Clifford+T gate set
 - Uses the Jamiołkowski fidelity
+
+### MITMS
+
+- Depth optimal
+- Clifford+T gate set
+- Takes its own circuit format as input (`.mitms` files here)
+- Doesn't support a unitary matrix as input, so can't approximate every circuit
 
 ### Synthetiq
 

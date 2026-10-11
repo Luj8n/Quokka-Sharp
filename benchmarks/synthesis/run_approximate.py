@@ -2,17 +2,33 @@ import sys
 
 from batch import run_batch
 
-INPUTS = ["cz"]
+INPUTS = ["ct_cy"]
 RUNS = [
-    ("quokka-approximate", "quokka", ".qasm", ["--fidelity", "0.99"]),
     (
-        "quokka-upstream-approximate",
-        "quokka-upstream",
+        "quokka-approximate",
+        "quokka",
         ".qasm",
-        ["--fidelity", "0.99"],
+        ["--fidelity", "0.89", "--timeout", "180"],
     ),
-    ("qiskit", "qiskit", ".qasm", ["--approximation-degree", "0.99"]),
-    ("synthetiq", "synthetiq", ".txt", ["--epsilon", "0.07079945545962932"]),
+    # (
+    #     "quokka-upstream-approximate",
+    #     "quokka-upstream",
+    #     ".qasm",
+    #     ["--fidelity", "0.89"],
+    # ),
+    ("qiskit", "qiskit", ".qasm", ["--approximation-degree", "0.9"]),
+    (
+        "synthetiq",
+        "synthetiq",
+        ".txt",
+        ["--epsilon", "0.23791151042843564", "--timeout", "180"],
+    ),
+    (
+        "mitms-approximate",
+        "mitms",
+        ".mitms",
+        ["--approximate", "--max-depth", "4", "--timeout", "180"],
+    ),
 ]
 
 
