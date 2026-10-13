@@ -783,13 +783,13 @@ class pauli2cnf:
             # CZ is symmetric: each pair is stored once, with the smaller qubit index first (c < t)
             czgate = [[cnf.add_var(syn_gate_pick=True, Name='cz', bits=[c, t]) if c < t else None
                             for t in range(n)]for c in range(n)]
-            def get_cz(a, b):
-                if a == b:
-                    return None
-                return czgate[min(a, b)][max(a, b)]
-            
         else:
             czgate = [[0.5 if c != t else None for t in range(n)] for c in range(n)]
+
+        def get_cz(a, b):
+                        if a == b:
+                            return None
+                        return czgate[min(a, b)][max(a, b)]
 
         if ENABLE_CSQRTX and (not limit_gates or not h_layer):
             csqrtxgate   = [[cnf.add_var(syn_gate_pick=True, Name='csqrtx',   bits=[c, t]) if c != t else None
@@ -1205,15 +1205,15 @@ class pauli2cnf:
                                 -cnf.get_syn_var_past_layer(
                                     Name='h', bit=t, past=2
                                     ),
-                                -hg[c]])
+                                -hg[t]])
                         cnf.add_clause([
                             -cnf.get_syn_var_past_layer(
-                            Name='cx', bit=[min(c, t), max(c, t)]
+                            Name='cx', bit=[c, t]
                                                             ),
                                 -cnf.get_syn_var_past_layer(
                                     Name='h', bit=t, past=2
                                     ),
-                                -hg[c]])
+                                -hg[t]])
 
 
         cnf.vars.x[:n] = X
