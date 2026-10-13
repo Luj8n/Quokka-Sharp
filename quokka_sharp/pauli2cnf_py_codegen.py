@@ -950,14 +950,58 @@ def add_synthesis():
                         for q in (c, t):
                             cnf.add_clause([
                                 -cnf.get_syn_var_past_layer(Name='cz', bit=[c, t]),
-                                -cnf.get_syn_var_past_layer(Name='tdg', bit=c, past=2),
-                                -tg[c]
+                                -cnf.get_syn_var_past_layer(Name='tdg', bit=q, past=2),
+                                -tg[q]
                             ])
 
                             cnf.add_clause([
                                 -cnf.get_syn_var_past_layer(Name='cz', bit=[c, t]),
                                 -cnf.get_syn_var_past_layer(Name='t', bit=q, past=2),
-                                -tdg[c]
+                                -tdg[q]
+                            ])
+
+                    # S/CX pruning
+                    if ENABLE_S and ENABLE_CX and cnf.syn_gate_layer >= 3:
+                        cnf.add_clause([
+                            -cnf.get_syn_var_past_layer(Name='cx', bit=[c, t]),
+                            -cnf.get_syn_var_past_layer(Name='sdg', bit=c, past=2),
+                            -sg[c]
+                        ])
+
+                        cnf.add_clause([
+                            -cnf.get_syn_var_past_layer(Name='cx', bit=[c, t]),
+                            -cnf.get_syn_var_past_layer(Name='s', bit=c, past=2),
+                            -sdg[c]
+                        ])
+
+                    # S/CZ pruning
+                    if ENABLE_S and ENABLE_CZ and cnf.syn_gate_layer >= 3 and c < t:
+                        for q in (c, t):
+                            cnf.add_clause([
+                                -cnf.get_syn_var_past_layer(Name='cz', bit=[c, t]),
+                                -cnf.get_syn_var_past_layer(Name='sdg', bit=q, past=2),
+                                -sg[q]
+                            ])
+
+                            cnf.add_clause([
+                                -cnf.get_syn_var_past_layer(Name='cz', bit=[c, t]),
+                                -cnf.get_syn_var_past_layer(Name='s', bit=q, past=2),
+                                -sdg[q]
+                            ])
+
+                    # S/CSqrtX pruning
+                    if ENABLE_S and ENABLE_CSQRTX and cnf.syn_gate_layer >= 3:
+                        for gate_name in ('csqrtx', 'csqrtxdg'):
+                            cnf.add_clause([
+                                -cnf.get_syn_var_past_layer(Name=gate_name, bit=[c, t]),
+                                -cnf.get_syn_var_past_layer(Name='sdg', bit=c, past=2),
+                                -sg[c]
+                            ])
+
+                            cnf.add_clause([
+                                -cnf.get_syn_var_past_layer(Name=gate_name, bit=[c, t]),
+                                -cnf.get_syn_var_past_layer(Name='s', bit=c, past=2),
+                                -sdg[c]
                             ])
 
 
