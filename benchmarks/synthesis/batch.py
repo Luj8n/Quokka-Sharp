@@ -121,7 +121,6 @@ def _read_run_result(
             )
             result["output_depths"] = [circuit.depth() for circuit in circuits]
             if target_operator is not None:
-                # Jamiołkowski fidelity: |Tr(U†V)|² / d², independent of global phase.
                 result["output_fidelities"] = [
                     float(process_fidelity(Operator(circuit), target_operator))
                     for circuit in circuits
@@ -159,6 +158,7 @@ def _run_repetitions(
 def _summarize_runs(records: list[dict], engine: str, options: list[str]) -> dict:
     """Summarize successful runs only, using sample standard deviation."""
     successful = [record for record in records if record["error"] is None]
+    multiple_candidates = engine == "mitms" and "--approximate" in options
     summary: dict = {
         "runs": len(records),
         "successful_runs": len(successful),
@@ -168,33 +168,29 @@ def _summarize_runs(records: list[dict], engine: str, options: list[str]) -> dic
         metric: [record[metric] for record in successful]
         for metric in ("runtime_seconds", "peak_memory_kib")
     }
-    if engine != "mitms" and any("output_fidelities" in record for record in records):
+    if not multiple_candidates and any(
+        "output_fidelities" in record for record in records
+    ):
         measurements["fidelity"] = [
             record["output_fidelities"][0] for record in successful
         ]
-    if engine in {"qiskit", "synthetiq"}:
+    if multiple_candidates:
+        summary["candidate_results"] = [
+            {
+                "repeat": record["repeat"],
+                "depth": record["output_depths"],
+                **(
+                    {"fidelity": record["output_fidelities"]}
+                    if "output_fidelities" in record
+                    else {}
+                ),
+            }
+            for record in successful
+        ]
+    else:
         measurements["output_depth"] = [
             record["output_depths"][0] for record in successful
         ]
-    elif engine != "mitms" or "--approximate" not in options:
-        depths = sorted(
-            {depth for record in successful for depth in record["output_depths"]}
-        )
-        summary["optimal_depth"] = depths[0] if depths else None
-        if len(depths) > 1:
-            summary["output_depths"] = depths
-    else:
-        summary["candidate_results"] = []
-        for record in successful:
-            candidates = []
-            for index, depth in enumerate(record["output_depths"]):
-                candidate = {"depth": depth}
-                if "output_fidelities" in record:
-                    candidate["fidelity"] = record["output_fidelities"][index]
-                candidates.append(candidate)
-            summary["candidate_results"].append(
-                {"repeat": record["repeat"], "candidates": candidates}
-            )
     for metric, values in measurements.items():
         summary[metric] = {
             "mean": mean(values) if values else None,
@@ -226,7 +222,7 @@ def _summarize_circuits(summaries: list[dict]) -> list[dict]:
         metrics = ["runtime_seconds", "peak_memory_kib"]
         if "fidelity" in circuits[0]:
             metrics.append("fidelity")
-        if engine in {"qiskit", "synthetiq"}:
+        if "output_depth" in circuits[0]:
             metrics.append("output_depth")
         for metric in metrics:
             values = [circuit[metric]["mean"] for circuit in successful]
