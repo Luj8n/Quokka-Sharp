@@ -199,10 +199,10 @@ def _summarize_runs(records: list[dict], engine: str, options: list[str]) -> dic
     return summary
 
 
-def _summarize_circuits(summaries: list[dict]) -> list[dict]:
+def _summarize_circuits(circuit_summaries: list[dict]) -> list[dict]:
     """Group circuit statistics and medians by run configuration."""
     groups: dict[tuple[str, str], list[dict]] = {}
-    for summary in summaries:
+    for summary in circuit_summaries:
         groups.setdefault((summary["label"], summary["engine"]), []).append(summary)
     aggregates = []
     for (label, engine), circuits in groups.items():
@@ -265,7 +265,7 @@ def run_batch(
             input_directory,
             include_matrix=any(engine == "synthetiq" for _, engine, _, _ in runs),
         )
-    summaries = []
+    circuit_summaries = []
     for name in inputs:
         target_operator = None
         if measure_fidelity:
@@ -283,7 +283,7 @@ def run_batch(
             records = _run_repetitions(
                 engine, target, options, prefix, runs_per_circuit, target_operator
             )
-            summaries.append(
+            circuit_summaries.append(
                 {
                     "circuit": name,
                     "label": label,
@@ -292,9 +292,6 @@ def run_batch(
                 }
             )
             (directory / "summary.json").write_text(
-                json.dumps(summaries, indent=2) + "\n"
+                json.dumps(_summarize_circuits(circuit_summaries), indent=2) + "\n"
             )
-            (directory / "aggregate_summary.json").write_text(
-                json.dumps(_summarize_circuits(summaries), indent=2) + "\n"
-            )
-    return int(any(summary["failed_runs"] for summary in summaries))
+    return int(any(summary["failed_runs"] for summary in circuit_summaries))
