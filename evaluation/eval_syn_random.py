@@ -1,6 +1,7 @@
 import datetime
 import os
 import time
+os.environ.setdefault("QUOKKA_CONFIG", os.path.join(os.path.dirname(os.path.realpath(__file__)), "config.json"))
 import utils
 import re
 import tempfile
@@ -156,14 +157,22 @@ def gen_and_run(q, d, seed, basis, onehot_xz):
 
     run_data["layers"] = layers
 
-    tmp = tempfile.NamedTemporaryFile(delete_on_close=False)
-    with open(tmp.name, 'w') as f:
-        f.write(qasm) 
-    test = qk.functionalities.eq(file, tmp.name, "comp", "cyclic", N=1)
-    if not test:
-        f"ERROR: Equivalence check failed for {file}"
-    if not test and status == "FOUND":
-        print(f"ERROR: Equivalence check failed for {file}. Synthesis returned FOUND but the circuits are not equivalent.")
+    test = False
+    if status == "FOUND":
+        tmp = tempfile.NamedTemporaryFile(delete_on_close=False)
+        with open(tmp.name, 'w') as f:
+            f.write(qasm)
+
+        test = qk.functionalities.eq(
+            file, tmp.name, "comp", "cyclic", N=1
+        ) is True
+
+        if not test:
+            print(
+                f"WARNING: Equivalence was not confirmed for {file}, "
+                "although synthesis returned FOUND."
+            )
+
     run_data["test"] = test
     
     utils.save_results_to_file(results_file_name, utils.add_result_to_df(run_data, status, end_time-start_time, 
@@ -236,6 +245,7 @@ for q in [2,3,4,5,6]:
         
         relevant_df = relevant_df[:samples]
         passed_df = relevant_df[(relevant_df["layers"] == d) & (relevant_df["result"] == "FOUND") & (relevant_df["time"] <= utils.timeout)]
+        passed_df = passed_df[passed_df["test"].eq(True)]
         passed_rate_dict[name(basis, onehot_xz)] = len(passed_df) / len(relevant_df)
         statistics_df_rows.append(
             {

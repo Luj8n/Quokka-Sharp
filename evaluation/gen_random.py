@@ -38,7 +38,8 @@ def generate_random_circuit_qasm(n, d, seed=None, weighted_prob_cx_h_s_sdg_t_tdg
     gate_weights = np.array(weighted_prob_cx_h_s_sdg_t_tdg)/np.sum(weighted_prob_cx_h_s_sdg_t_tdg)
     if all(x == gate_weights[0] for x in gate_weights):     # If all weights are equal
         gate_weights = None                           # set to None for uniform distribution
-
+    if seed is None:
+        seed = 0
     rng = np.random.default_rng(seed) 
 
     for _ in range(d):
@@ -54,6 +55,8 @@ def generate_random_circuit_qasm(n, d, seed=None, weighted_prob_cx_h_s_sdg_t_tdg
                     circuit_lines.append(f'cx q[{control}],q[{target}];')
                 else:
                     # If no target qubit is available, change the gate to a single qubit gate
+                    if np.sum(weighted_prob_cx_h_s_sdg_t_tdg[1:]) == 0:
+                        continue
                     gate = rng.choice(gates[1:], p=weighted_prob_cx_h_s_sdg_t_tdg[1:]/np.sum(weighted_prob_cx_h_s_sdg_t_tdg[1:]))
                     circuit_lines.append(f'{gate} q[{target}];')
                     

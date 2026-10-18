@@ -245,9 +245,13 @@ def add_result_to_df(data_dict, result, time_taken, df, memory=None):
 	if df.empty:
 		return new_df
 	
-	exsisting_data = get_data(data_dict, df)
-	old_df = df
-	if not exsisting_data.empty:
-		old_df = old_df.drop(exsisting_data.index)
+	# exsisting_data = get_data(data_dict, df)
+	# old_df = df
+	# if not exsisting_data.empty:
+	# 	old_df = old_df.drop(exsisting_data.index)
+	keys = ["qubits", "depth", "seed", "basis"]
+
+	matches = (df[keys] == pd.Series(data_dict)[keys]).all(axis=1)
+	old_df = df.loc[~matches]
 
 	return pd.concat([old_df, new_df], ignore_index=True)
