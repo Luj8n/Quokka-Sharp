@@ -22,7 +22,7 @@ def get_from_file_name(file_name):
     return tuple(map(int, re.compile(r"random_q(\d+)_d(\d+)_s(\d+).qasm").match(file_name).groups()))
 
 samples = 10
-success_rate_threshold = 0.5
+success_rate_threshold = 0.65
 
 results_file_name = "synthesis.csv" # File which contains the results of the synthesis process
 df_columns = ["qubits", "depth", "seed", "basis", "layers", "result", "time", "mem", "test"] # Columns of results file
@@ -132,7 +132,7 @@ def gen_and_run(q, d, seed, basis, onehot_xz):
             q, d, seed,
             folder_name=folder_name,
             filename_format=filename_format,
-            weighted_prob_cx_h_s_sdg_t_tdg=[1, 1, 0, 0, 1, 1, 0.1, 0.1, 0.1]
+            weighted_prob_cx_h_s_sdg_t_tdg=[1, 1, 0, 0, 1, 1, 0.15, 0.15, 0.15]
         )
     else:
         print(f"Using existing QASM file: {file}")
@@ -203,49 +203,43 @@ def name(basis, onehot_xz):
             raise ValueError(f"Unknown basis: {basis}")
 
 
+
 statistics_df_rows=[]
 for q in [2,3,4,5,6]:
     d_dict = {name(b,lin): 1 for b, lin in basis_onehot_xz_list}  # Initialize depth for each basis
     passed_rate_dict = {name(b,lin): 1 for b, lin in basis_onehot_xz_list}  # Initialize passed rate for each basis
     while any([passed_rate_dict[name(b,lin)] >= success_rate_threshold for b, lin in basis_onehot_xz_list]):
         # let the fastest run first for each qubit to find bad seeds quicker
-        basis, onehot_xz = [(b,lin) for b,lin in basis_onehot_xz_list if passed_rate_dict[name(b,lin)]>= success_rate_threshold][0]
+        basis, onehot_xz = [(b,lin) for b,lin in basis_onehot_xz_list if passed_rate_dict[name(b,lin)] >= success_rate_threshold][0]
         d = d_dict[name(basis, onehot_xz)]
         # Filter the DataFrame for the current qubits and depth
         results_df = utils.get_results_from_file(results_file_name, df_columns)
-        results_df = results_df[(results_df["result"] != "TIMEOUT") | (results_df["time"] >=utils.timeout)]
+        results_df = results_df[(results_df["result"] != "TIMEOUT") | (results_df["time"] >= utils.timeout)]
 
-        bad_seeds_strs = results_df[(results_df["qubits"] == q) & (results_df["depth"] == d) &
-                                                    (results_df["layers"] < d) & (results_df["result"] == "FOUND")]["seed"].unique()
-        bad_seeds = [int(s) for s in bad_seeds_strs]
-        
-        q_d_df = results_df[(results_df["qubits"] == q) & (results_df["depth"] == d) & (results_df["basis"] == name(basis, onehot_xz)) & ~(results_df["seed"].isin(bad_seeds))]
+        q_d_df = results_df[(results_df["qubits"] == q) & (results_df["depth"] == d) & (results_df["basis"] == name(basis, onehot_xz))]
 
         if q_d_df.empty:
-            if 0 in bad_seeds:
-                seed_to_generate = min(set(range(max(bad_seeds)+2)) - set(bad_seeds))
-            else:
-                seed_to_generate = 0
+            used_seeds = [int(s) for s in q_d_df["seed"].unique()]
+            seed_to_generate = min(set(range(max(used_seeds, default=-1) + 2)) - set(used_seeds))
             gen_and_run(q, d, seed_to_generate, basis, onehot_xz)
             continue
 
-        # Check if all results are "TIMEOUT"
+        # Check for crashes
         if any(q_d_df["result"] == "CRASH"):
             print(f"WARNING: crash cases\n{q_d_df[q_d_df['result'] == 'CRASH']}")
-        
-        relevant_df = q_d_df[(q_d_df["layers"] == d) | (q_d_df["result"] == "TIMEOUT") | (q_d_df["result"] == "CRASH")]
+
+        # Include all FOUND results regardless of synthesized depth, along with eligible TIMEOUT and CRASH results
+        relevant_df = q_d_df[(q_d_df["result"] == "FOUND") | (q_d_df["result"] == "TIMEOUT") | (q_d_df["result"] == "CRASH")]
         relevant_df = relevant_df[(relevant_df["result"] != "TIMEOUT") | (relevant_df["time"] >= utils.timeout)]
 
         if len(relevant_df) < samples:
             used_seeds = [int(s) for s in q_d_df["seed"].unique()]
-            max_seed = max(bad_seeds + used_seeds) 
-            seed_to_generate = min(set(range(max_seed + 2)) - set(used_seeds) - set(bad_seeds))
+            seed_to_generate = min(set(range(max(used_seeds, default=-1) + 2)) - set(used_seeds))
             gen_and_run(q, d, seed_to_generate, basis, onehot_xz)
             continue
-        
+
         relevant_df = relevant_df[:samples]
-        passed_df = relevant_df[(relevant_df["layers"] == d) & (relevant_df["result"] == "FOUND") & (relevant_df["time"] <= utils.timeout)]
-        passed_df = passed_df[passed_df["test"].eq(True)]
+        passed_df = relevant_df[(relevant_df["result"] == "FOUND") & (relevant_df["test"].eq(True))]
         passed_rate_dict[name(basis, onehot_xz)] = len(passed_df) / len(relevant_df)
         statistics_df_rows.append(
             {
@@ -259,7 +253,6 @@ for q in [2,3,4,5,6]:
         )
         statistics_to_latex(statistics_df_rows)
         d_dict[name(basis, onehot_xz)] += 1
-    
 
     results_df = utils.get_results_from_file(results_file_name, df_columns).sort_values(by=df_columns, ignore_index=True)
     utils.save_results_to_file(results_file_name, results_df)
