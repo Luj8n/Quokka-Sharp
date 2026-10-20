@@ -27,6 +27,8 @@ class MitmsEngine(Engine):
                     "-threads",
                     "1",
                     "-approximate" if self.approximate else "-early-stop",
+                    # Inversion reduction can miss valid approximate solutions.
+                    *(["-no-invs"] if self.approximate else []),
                     "-max-seq-length",
                     str(self.max_depth // 2 + 1),
                     self.label,
