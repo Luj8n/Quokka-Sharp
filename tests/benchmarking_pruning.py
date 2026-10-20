@@ -3,6 +3,7 @@ import csv
 import re
 import statistics
 import time
+import shutil
 from pathlib import Path
 
 import quokka_sharp as qk
@@ -103,6 +104,10 @@ def run_synthesis(path, gate_set, mode, run_number):
         / path.stem
         / f"run_{run_number}"
     )
+
+    
+    if files_root.exists():
+        shutil.rmtree(files_root)
 
     files_root.mkdir(parents=True, exist_ok=True)
 
@@ -265,6 +270,11 @@ def summarize(rows):
             for entry in successful
         }
 
+        gate_sets = {
+            frozenset(entry["gate_set"].split(","))
+            for entry in entries
+        }
+
         summary[circuit] = {
             "total": len(entries),
             "found": len(successful),
@@ -273,6 +283,7 @@ def summarize(rows):
                 if times else None
             ),
             "depths": depths,
+            "gate_sets": gate_sets,
         }
 
     return summary
@@ -296,7 +307,10 @@ def compare():
         b = on.get(circuit)
 
         if a is None or b is None:
-            continue
+            missing_from = "first" if a is None else "second"
+            raise ValueError(
+                f"Circuit {circuit!r} is missing from the {missing_from} benchmark CSV"
+            )
 
         off_time = a["median_time"]
         on_time = b["median_time"]
@@ -304,6 +318,11 @@ def compare():
         comparable = (
             a["found"] == a["total"]
             and b["found"] == b["total"]
+            and a["total"] == b["total"]
+            and a["gate_sets"] == b["gate_sets"]
+            and len(a["gate_sets"]) == 1
+            and a["depths"] == b["depths"]
+            and len(a["depths"]) == 1
             and off_time is not None
             and on_time is not None
             and on_time > 0
@@ -321,10 +340,7 @@ def compare():
             "off_median": off_time,
             "on_median": on_time,
             "speedup": speedup,
-            "same_depth": (
-                a["depths"] == b["depths"]
-                if comparable else ""
-            ),
+            "same_depth": a["depths"] == b["depths"],
         }
 
         comparison.append(row)
