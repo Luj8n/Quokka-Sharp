@@ -117,6 +117,7 @@ def Synthesis(
     precision = qc.CONFIG["Precision"]
 
     getcontext().prec = precision
+    fidelity_threshold = Decimal(str(fidelity_threshold))
     """
     Function to synthesize a quantum circuit
     Args:
@@ -165,6 +166,11 @@ def Synthesis(
             else:
                 expected_prob = 4**cnf.n
                 expected_abs_value = False
+
+            # CB counts amplitudes; PB counts their squared magnitude.
+            solver_threshold = expected_prob * (
+                fidelity_threshold.sqrt() if expected_abs_value else fidelity_threshold
+            )
 
             done = False
             bin_lb = 0
@@ -247,7 +253,7 @@ def Synthesis(
                     + ["--complex", ("1" if cnf.computational_basis else "0")]
                     + [
                         "--threshold",
-                        str(expected_prob * fidelity_threshold)
+                        str(solver_threshold)
                         + (" 0" if cnf.computational_basis else ""),
                     ]
                 )
@@ -302,7 +308,7 @@ def Synthesis(
                     else:
                         num_layers = int(bin_lb * 2)
                 else:
-                    if found or weight > fidelity_threshold:
+                    if found or weight >= fidelity_threshold:
                         done = True
                 if printing:
                     print(f"Run Time: {time.time() - start}")

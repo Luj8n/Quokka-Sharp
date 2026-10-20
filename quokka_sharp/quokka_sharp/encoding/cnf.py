@@ -713,18 +713,16 @@ class CNF:
             if entry is None:
                 continue
             weight, neg_weight = entry
-            line = self.encode_weight(var, weight)
+            line = self.encode_weight(var, weight, syntesis_fomat)
             lines.append(line)
-            line = self.encode_weight(-var, neg_weight)
+            line = self.encode_weight(-var, neg_weight, syntesis_fomat)
             lines.append(line)
         return "".join(lines)
 
-    def encode_weight(self, var, weight):
+    def encode_weight(self, var, weight, syntesis_fomat=False):
         is_complex = isinstance(weight, complex)
-        weight_kind = "weight"
-        # if not syntesis_fomat:
-        #     weight_kind = "weight"
-        real_part = weight.real if isinstance(weight, complex) else weight
+        weight_kind = "complex" if syntesis_fomat and is_complex else "weight"
+        real_part = weight.real if is_complex else weight
         line = f"c p {weight_kind} {var} {real_part}"
         if is_complex:
             # support ganak complex format
