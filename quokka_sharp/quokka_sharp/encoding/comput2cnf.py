@@ -244,7 +244,10 @@ class comput2cnf:
 
 
 
-    def SynLayer2CNF(cnf):
+    def SynLayer2CNF(cnf, gate_set=None):
+        gate_set = set(gate_set) if gate_set else {'h', 'cx', 't'}
+        if gate_set - {'h', 'cx', 't'}:
+            raise ValueError("Computational-basis synthesis supports only h, cx, t (including tdg)")
         n = cnf.n
         x = cnf.vars.x
         X = [cnf.add_var() for _ in range(n)]
@@ -262,6 +265,14 @@ class comput2cnf:
         tg = [cnf.add_var(syn_gate_pick = True, Name = 't', bits = [k]) for k in range(n)]
         tdg = [cnf.add_var(syn_gate_pick = True, Name = 'tdg', bits = [k]) for k in range(n)]
         cg = [[cnf.add_var(syn_gate_pick = True, Name = 'cx', bits = [c,t]) if c!=t else None for t in range(n)] for c in range(n)]
+        for name, selectors in (
+            ('h', hg),
+            ('t', tg + tdg),
+            ('cx', [var for row in cg for var in row if var is not None]),
+        ):
+            if name not in gate_set:
+                for var in selectors:
+                    cnf.add_clause([-var])
         for k in range(n):
     
             # Implies(idg[k], Equivalent(X[k], x[k]))
