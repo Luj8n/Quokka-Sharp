@@ -17,3 +17,5 @@ tmp/*
 quokka_sharp/debug.py
 .solvers/
 benchmarks/synthesis/results/
+pruning_results/*
+!pruning_results/comparison.csv
