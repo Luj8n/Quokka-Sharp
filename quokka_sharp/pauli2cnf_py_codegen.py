@@ -824,7 +824,7 @@ def add_synthesis():
 
     print("""
                 # CZ properties
-                if ENABLE_CZ and (not limit_gates or not h_layer):
+                if ENABLE_CZ and (not limit_gates or not h_layer) and c < t:
     """)
     to_py(CZ_xc, prefix="            ")
     to_py(CZ_xt, prefix="            ")
