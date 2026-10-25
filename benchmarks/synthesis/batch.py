@@ -257,16 +257,17 @@ def run_batch(
     print(f"Results: {directory}", flush=True)
     run_directory = directory / "runs"
     run_directory.mkdir()
-    input_directory = HERE / "inputs"
+    targets = [(name, HERE / "inputs", False) for name in inputs]
     if random_circuit is not None:
         input_directory = directory / "inputs"
-        inputs = _write_random_inputs(
+        random_inputs = _write_random_inputs(
             random_circuit,
             input_directory,
             include_matrix=any(engine == "synthetiq" for _, engine, _, _ in runs),
         )
+        targets.extend((name, input_directory, True) for name in random_inputs)
     circuit_summaries = []
-    for name in inputs:
+    for name, input_directory, is_random in targets:
         target_operator = None
         if measure_fidelity:
             target_operator = Operator(
@@ -277,7 +278,7 @@ def run_batch(
             )
         for label, engine, suffix, options in runs:
             target = input_directory / f"{name}{suffix}"
-            if random_circuit is not None and engine in {"quokka", "quokka-upstream"}:
+            if is_random and engine in {"quokka", "quokka-upstream"}:
                 target = input_directory / f"{name}.quokka.qasm"
             prefix = run_directory / f"{name}-{label}"
             records = _run_repetitions(
